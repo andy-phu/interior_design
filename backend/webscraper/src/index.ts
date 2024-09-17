@@ -21,7 +21,7 @@ async function WebScrapingLocalTest() {
     console.log("Starting to scrape");
     (puppeteer as any).use(StealthPlugin());
 
-    const browser = await (puppeteer as any).launch({ headless: false, protocolTimeout: 900000 });
+    const browser = await (puppeteer as any).launch({ headless: true, protocolTimeout: 900000 });
     try {
         const page = await browser.newPage();
         await page.goto('https://www.ashleyfurniture.com/c/furniture/living-room/sofas', {
