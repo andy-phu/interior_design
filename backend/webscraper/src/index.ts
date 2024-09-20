@@ -16,19 +16,22 @@ const app = express();
 const gemini = process.env.GEMINI || "";
 
 type ScrapedProduct = {
+    id: string | undefined;
     name: string | undefined;
     image: string | undefined;
     price: string | undefined;
-    description: string | undefined;
+    category: string | undefined;
+    product_type: string | undefined;
+    brand: string | undefined;
     material: string | undefined;
-    // product_link: string | null;
+    product_link: string | undefined;
 };
 
 
 
 
 // Assuming the HTML file is in the same directory as the script
-const htmlFilePath = 'src/test.html'; // Provide the path to your HTML file
+const htmlFilePath = 'src/ashley_furniture_couches/couch_page_2.html'; // Provide the path to your HTML file
 
 
 function reformatPrice(priceString: string) {
@@ -83,13 +86,13 @@ app.get("/", async (req: Request, res: Response) => {
 
 
 
-            let counter: number = 0;
+            let id: number = 0;
             const productTiles = $('.product-tile').toArray();  // Convert jQuery object to array
             
             for (let elem of productTiles) {
                 // Extract product name
                 const name = $(elem).find('.product-name h3 a.name-link').text().trim();
-                
+                const product_link = $(elem).find('.product-name h3 a.name-link').attr('href');
                 const image = $(elem).find('img.alternate-image').attr('src');
             
                 let price: string = $(elem).find('.product-sales-price').text().trim();
@@ -99,26 +102,27 @@ app.get("/", async (req: Request, res: Response) => {
                 } else if (price.includes("-")) {
                     price = reformatPrice(price);
                 }
+
                 let material: string = "";
+                const category: string = "Living Room";
+                const product_type: string = "Couch" 
+                const brand: string = "Ashley";
 
                 const description = $(elem).find('.thumb-link').attr('data-gtmdata');
                 
                 if (description != null) {
                     const descriptionObject = JSON.parse(description);
                     const name = descriptionObject.name;
-                    const brand = descriptionObject.brand;
-                    const category = descriptionObject.category;
             
                     const dimension35 = descriptionObject.dimension35;
                     let dimension38: string = descriptionObject.dimension38;
-                    const dimension14 = descriptionObject.dimension14;
                     const dimension47 = descriptionObject.dimension47;
             
                     if (myMap.get(name) == "") {
                         myMap.set(name, dimension35);
                     }
                     
-                    const material_list: string[] = ["Fabric", "Chenille", "Faux Leather", "Velvet", "Performance Fabric"];
+                    const material_list: string[] = ["Fabric", "Chenille", "Leather", "Faux Leather", "Velvet", "Performance Fabric"];
                     
                     // Check if the name has one of these materials in it
                     for (let mat of material_list) {
@@ -145,99 +149,37 @@ app.get("/", async (req: Request, res: Response) => {
                             material = dimension38;
                         } else {
                             // Use Gemini API to identify the color
-                            counter += 1;
-                            console.log(`Use Gemini API for the couch ${name} ${counter}`);
-                            
-                            if (image != undefined){
-                                const tempFilePath = path.join(os.tmpdir(), 'temp_image.webp'); // Adjust the filename as needed
-                                const imageResponse = await axios.get(image, { responseType: 'arraybuffer' });
-                                fs.writeFileSync(tempFilePath, Buffer.from(imageResponse.data));
-    
-                                // Upload the temporary file to the Gemini API
-                                const fileManager = new GoogleAIFileManager(gemini);
-                                const uploadResult = await fileManager.uploadFile(
-                                tempFilePath,
-                                {
-                                    mimeType: "image/webp", // Replace with the correct mime type if necessary
-                                    displayName: "temp_image",
-                                },
-                                );
-    
-    
-
-                                // Get the previously uploaded file's metadata.
-                                const getResponse = await fileManager.getFile(uploadResult.file.name);
-    
-                                // View the response.
-                                console.log(
-                                  `Uploaded file ${uploadResult.file.displayName} as: ${uploadResult.file.uri}`,
-                                );
-
-
-                                  
-                                const genAI = new GoogleGenerativeAI(gemini);
-                                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-                                const result = await model.generateContent([
-                                  "Choose one material that represents the sofa in the image uploaded based on these options: Fabric, Chenille, Faux Leather, Velvet, Performance Fabric. For your response only use one word, no explanation needed. Make sure you response matches the option exactly with the correct spelling and captilization",
-                                  {
-                                    fileData: {
-                                        fileUri: uploadResult.file.uri, // Use the uploaded file URI
-                                        mimeType: "image/webp",
-                                    }
-                                  },
-                                ]);
-                                // const result = await model.generateContent(["Choose one material that represents each sofa in the image uploaded based on these options: Fabric, Chenille, Faux Leather, Velvet, Performance Fabric. Make sure you response matches the option exactly with the correct spelling and captilization", ...imageParts]);
-
-                                console.log(result.response.text().trim());
-                                if (material_list.includes(result.response.text().trim())){
-                                    material = result.response.text();
-                                }else{
-                                    console.log("gemini said a material that is not on the list!!")
-                                }
-
-                            }
-
+                            // counter += 1;
+                            // console.log(`Use Gemini API for the couch ${name} ${counter}`);
                         }
                     }
             
 
-                    // Log the results
-                    console.log("Name:", name);
-                    console.log("Brand:", brand);
-                    console.log("Category:", category);
-                    console.log("Dimension 38:", dimension38);
-                    console.log("Dimension 14:", dimension14);
-                    console.log("Dimension 47:", dimension47);
-                    console.log("Material:", material);
+             
                 }
             
-                const description_array = description?.split(",");
                 
-                console.log("------------------------");
-
+                id+=1;
                 //make objects even if the materials are empty
-                product_array.push({ "name": name, "image": image, "price": price, "description": description, "material": material });
+                product_array.push({"id": String(id), "name": name, "image": image, "price": price, "category": category, "product_type": product_type, "material": material, "product_link": product_link, "brand" : brand});
             }
 
             
             //go through each product with empty materials and get groups of 5 products to download their uris
             //and put them through the gemini api 
-
-
-     
-
-
-            return product_array;
+            const final_array = await materialAnalyzer(product_array);
+            // console.log(final_array);
+            return materialAnalyzer(product_array);
         } catch (error) {
             console.error('Error:', error);
         }
     }
 
     // Use the parseHTMLFile function instead of scraping the URL
-    const result = parseHTMLFile(htmlFilePath);
+    const result = await parseHTMLFile(htmlFilePath);
 
     // console.log("========================")
-    // console.log(result);
+    console.log(result);
 
     res.json(result);
     
@@ -277,7 +219,7 @@ async function materialAnalyzer(product_array: ScrapedProduct[]){
 
     // Chunk invalid_mats into groups of 5
     const chunks = chunkArray(invalid_mats, 5);
-
+    let final_materials: string[] = [];
     // Process each chunk
     for (const chunk of chunks) {
         // Extract images from the chunk
@@ -287,7 +229,7 @@ async function materialAnalyzer(product_array: ScrapedProduct[]){
 
         for (let i = 0; i < images.length; i++) {
             if (images[i] !== undefined) {
-                const tempFilePath = path.join(os.tmpdir(), `temp_image_${i}.jpg`);
+                const tempFilePath = path.join(os.tmpdir(), `temp_image_${i}.webp`);
                 const imagePath = images[i] ?? "";
                 await downloadImage(imagePath, tempFilePath); // Replace with actual download logic
                 tempFiles.push(tempFilePath);
@@ -300,27 +242,39 @@ async function materialAnalyzer(product_array: ScrapedProduct[]){
         const genAI = new GoogleGenerativeAI(gemini);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const prompt = "Choose one material that represents each sofa in the image uploaded based on these options: Fabric, Chenille, Faux Leather, Velvet, Performance Fabric. Make sure you response matches the option exactly with the correct spelling and captilization";
+        const prompt = "Choose one material that represents each sofa in the image uploaded based on these options: Fabric, Chenille, Faux Leather, Velvet, Performance Fabric. Make sure you response matches the option exactly with the correct spelling and captilization. Each answer should be seperated by a comma on one line.";
 
         const result = await model.generateContent([prompt, ...imageParts]);
 
-        console.log(result.response.text().trim());
- 
+        const result_arr = result.response.text().trim().split(",");
+        
+        let trimmedMaterials = result_arr.map(material => material.trim());
+        final_materials = final_materials.concat(trimmedMaterials);
 
         // Clean up temporary files (optional)
         if (tempFiles.length > 0) {
-        for (const tempFile of tempFiles) {
-            try {
-            await fs.unlinkSync(tempFile);
-            } catch (error) {
-            console.error(`Error deleting temporary file: ${tempFile}`, error);
-            // Handle deletion errors gracefully
+            for (const tempFile of tempFiles) {
+                try {
+                    // Check if the file exists before attempting to delete it
+                    if (fs.existsSync(tempFile)) {
+                        await fs.unlinkSync(tempFile);  // Remove the file
+                        // console.log(`Successfully deleted temporary file: ${tempFile}`);
+                    } else {
+                        // console.log(`File not found, skipping deletion: ${tempFile}`);
+                    }
+                } catch (error) {
+                    console.error(`Error deleting temporary file: ${tempFile}`, error);
+                    // Handle deletion errors gracefully
+                }
             }
-        }
         }
     }
 
-
+    for (let i = 0; i < invalid_mats.length; i++){
+        // console.log(invalid_mats[i]);
+        invalid_mats[i].material = final_materials[i];
+   
+    }
 
     // Return the updated product array with identified materials
     return [...valid_mats, ...invalid_mats];
