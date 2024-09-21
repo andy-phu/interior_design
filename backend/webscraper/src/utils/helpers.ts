@@ -3,6 +3,16 @@ import path from 'path';
 import os from 'os';
 import axios from 'axios';
 
+export const fileToGenerativePart = (path: string, mimeType: string) =>{
+    return {
+      inlineData: {
+        data: Buffer.from(fs.readFileSync(path)).toString("base64"),
+        mimeType
+      },
+    };
+}
+
+
 export const reformatPrice = (priceString: string) => {
   const cleanedPrice = priceString
     .replace(/\n/g, ' ')
