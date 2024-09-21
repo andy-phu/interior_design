@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { parseHTMLFile, materialAnalyzer } from '../services/ashleyService.js';
+import { parseHTMLFile, materialAnalyzer, addCouches } from '../services/ashleyService.js';
 
 export const getAshleyCouches = async (req: Request, res: Response) => {
 	console.log("trying to get ashley couches")
@@ -11,8 +11,15 @@ export const getAshleyCouches = async (req: Request, res: Response) => {
 		
 		if (products != undefined){
 			const analyzed_products = await materialAnalyzer(products);
-			console.log(analyzed_products);
-			res.json(analyzed_products);
+			const result = await addCouches(analyzed_products);  
+            if (result.success) {
+                console.log("Couches added successfully");
+				console.log(analyzed_products);
+                res.json({ message: "Couches added successfully", data: analyzed_products });
+            } else {
+                console.error("Failed to add couches:", result.error);
+                res.status(500).json({ error: "Failed to add couches", details: result.error });
+            }			
 		}else{
 			console.error("ERROR: products are undefined, html was not parsed properly")
 		}

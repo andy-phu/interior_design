@@ -5,9 +5,21 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ScrapedProduct } from '../types/types.js';
 import { reformatPrice, fileToGenerativePart, downloadImage } from '../utils/helpers.js';
 import * as cheerio from 'cheerio';
+import prisma from '../prisma/prisma.js';
+// import { ScrapflyClient, ScrapeConfig } from 'scrapfly-sdk';
 
 
 const gemini = process.env.GEMINI || "";
+
+
+// const client = new ScrapflyClient({ key: 'scp-live-0eac910d8e374544ba26d1fc9336ac7c' });
+// const apiResponse = await client.scrape(new ScrapeConfig({
+//     tags="player,project:default",
+//     extraction_template="ephemeral:eyJzZWxlY3RvcnMiOlt7Im5hbWUiOiJwcm9kdWN0LW5hbWUiLCJxdWVyeSI6IlsucHJvZHVjdC1uYW1lIGgzIGEubmFtZS1saW5rXTo6dGV4dCIsInR5cGUiOiJjc3MifV0sInNvdXJjZSI6Imh0bWwifQ",
+//     asp=true,
+//     render_js=true,
+//     url="https://www.ashleyfurniture.com/c/furniture/living-room/sofas/",
+// }));
 
 
 export const parseHTMLFile = async (filePath: string) =>{
@@ -41,7 +53,6 @@ export const parseHTMLFile = async (filePath: string) =>{
 
 
 
-        let id: number = 0;
         const productTiles = $('.product-tile').toArray();  // Convert jQuery object to array
         
         for (let elem of productTiles) {
@@ -112,9 +123,8 @@ export const parseHTMLFile = async (filePath: string) =>{
             }
         
             
-            id+=1;
             //make objects even if the materials are empty
-            product_array.push({"id": String(id), "name": name, "image": image, "price": price, "category": category, "productType": product_type, "material": material, "productLink": product_link, "brand" : brand});
+            product_array.push({"name": name, "image": image, "price": price, "category": category, "productType": product_type, "material": material, "productLink": product_link, "brand" : brand});
         }
 
         
@@ -195,3 +205,35 @@ export const materialAnalyzer = async (product_array: ScrapedProduct[]): Promise
     // Return the updated product array with identified materials
     return [...valid_mats, ...invalid_mats];
 };
+
+
+export const addCouches = async (product_array: ScrapedProduct[]) => {
+    try {
+        for (let p of product_array) {
+            const existingCouch = await prisma.couch.findUnique({
+                where: { name: p.name }
+            });
+
+            if (!existingCouch){
+                await prisma.couch.create({
+                    data: {
+                        name: p.name,
+                        image: p.image, 
+                        price: p.price, 
+                        category: p.category,
+                        productType: p.productType,
+                        brand: p.brand,
+                        material: p.material, 
+                        productLink: p.productLink 
+                    }
+                });
+            }else{
+                console.log(`The ${p.name} already exists in the db, thus was not added`);
+            }
+
+        }
+        return { success: true};
+    } catch (error) {
+        return { success: false, error: error };
+    }
+}

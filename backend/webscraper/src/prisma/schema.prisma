@@ -1,0 +1,22 @@
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Couch {
+    id          Int     @id @default(autoincrement())
+    name        String @unique
+    image       String   
+    price       String   
+    category    String   
+    productType String  
+    brand       String   
+    material    String   
+    productLink String   
+}
+
+

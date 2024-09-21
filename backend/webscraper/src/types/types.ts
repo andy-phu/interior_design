@@ -1,5 +1,4 @@
 export type ScrapedProduct = {
-    id: string | "";
     name: string | "";
     image: string | "";
     price: string | "";
