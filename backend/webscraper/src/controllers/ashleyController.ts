@@ -1,9 +1,12 @@
 import { Request, Response } from 'express';
-import { parseHTMLFile, materialAnalyzer, addCouches } from '../services/ashleyService.js';
+import { parseHTMLFile, materialAnalyzer, addCouches, scrapePage } from '../services/ashleyService.js';
 
 export const getAshleyCouches = async (req: Request, res: Response) => {
 	console.log("trying to get ashley couches")
 	try {
+
+		await scrapePage("https://www.ashleyfurniture.com/c/furniture/living-room/sofas/");
+
 		//Use scrapefly to get a list of html files and pass it to parse html file, this would be a for loop and append it to a jsonArray
 		const html_file_path = 'src/html_files/ashley_couches/couch_page_1.html';
 		

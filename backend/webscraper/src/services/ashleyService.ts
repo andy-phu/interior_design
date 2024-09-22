@@ -3,24 +3,112 @@ import path from 'path';
 import os from 'os';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ScrapedProduct } from '../types/types.js';
-import { reformatPrice, fileToGenerativePart, downloadImage } from '../utils/helpers.js';
+import { isValidURL, reformatPrice, fileToGenerativePart, downloadImage } from '../utils/helpers.js';
 import * as cheerio from 'cheerio';
 import prisma from '../prisma/prisma.js';
-// import { ScrapflyClient, ScrapeConfig } from 'scrapfly-sdk';
-
+import axios from 'axios';
 
 const gemini = process.env.GEMINI || "";
 
 
-// const client = new ScrapflyClient({ key: 'scp-live-0eac910d8e374544ba26d1fc9336ac7c' });
-// const apiResponse = await client.scrape(new ScrapeConfig({
-//     tags="player,project:default",
-//     extraction_template="ephemeral:eyJzZWxlY3RvcnMiOlt7Im5hbWUiOiJwcm9kdWN0LW5hbWUiLCJxdWVyeSI6IlsucHJvZHVjdC1uYW1lIGgzIGEubmFtZS1saW5rXTo6dGV4dCIsInR5cGUiOiJjc3MifV0sInNvdXJjZSI6Imh0bWwifQ",
-//     asp=true,
-//     render_js=true,
-//     url="https://www.ashleyfurniture.com/c/furniture/living-room/sofas/",
-// }));
 
+
+
+export const scrapePage = async (url: string) =>{
+
+    if (!isValidURL(url)){
+        return false;
+    }
+    const options = {
+        method: 'POST',
+        url: 'https://scrapeninja.p.rapidapi.com/scrape-js',
+        headers: {
+          'x-rapidapi-key': '3406cf51b5mshba278aa6fac79b7p1bedc0jsn58a074047b14',
+          'x-rapidapi-host': 'scrapeninja.p.rapidapi.com',
+          'Content-Type': 'application/json'
+        },
+        data: {
+            url: url,
+            method: 'GET',
+            retryNum: 1,
+            geo: 'us',
+            js: true,
+            blockImages: false,
+            blockMedia: false,
+            viewport: {
+              width: 353,
+              height: 745,
+              deviceScaleFactor: 3,
+              isMobile: true,
+              hasTouch: true,
+              isLandscape: false
+            },
+            waitForSelector: '.sale-price'
+        }
+    };
+
+    try {
+        const response = await axios.request(options);
+        let resJson = await response.data;
+
+        // Basic error handling. Modify if neccessary
+        if (!resJson.info || ![200, 404].includes(resJson.info.statusCode)) {
+            throw new Error(JSON.stringify(resJson));
+        }
+      
+        console.log('target website response status: ', resJson.info.statusCode);
+        console.log('target website response body: ', resJson.body);
+
+        console.log(response.data);
+        const filePath = 'src/html_files/ashley_couches/couch_page_1.html'; // Change this to your desired file path
+
+        // Write the content to the file, overwriting it each time
+        fs.writeFileSync(filePath, resJson.body, 'utf8'); // Use 'utf8' encoding
+        return true;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+
+
+}
+
+// export const scrapeAllCouches = async () =>{
+//     const base_url: string = 'https://www.ashleyfurniture.com/c/furniture/living-room/sofas/'
+//     // https://www.ashleyfurniture.com/c/furniture/living-room/sofas/?start=48&sz=48
+//     for(let i = 1; i < 7; i++){
+//         let multi: Number = i * 48;
+//         const new_url: string = `${base_url}?start=${multi}&sz=48`;
+
+//         try{
+//             const scrape_result = await scrapePage(new_url);
+//             if (scrape_result){
+//                 const products = await parseHTMLFile('src/html_files/ashley_couches/couch_page_1.html');
+		
+//                 if (products != undefined){
+//                     const analyzed_products = await materialAnalyzer(products);
+//                     const result = await addCouches(analyzed_products);  
+//                     if (result.success) {
+//                         console.log("Couches added successfully");
+//                         console.log(analyzed_products);
+//                         return analyzed_products;
+//                     } else {
+//                         console.error("Failed to add couches:", result.error);
+//                         return null;
+//                     }			
+//                 }else{
+//                     console.error("ERROR: products are undefined, html was not parsed properly");
+//                     return null;
+//                 }            
+//             }else{
+//                 console.log("This page was not able to be scraped: ", new_url)
+//             }
+//         }catch(error){
+//             console.error("ERROR: one of the pages weren't able to be scraped");
+//             return null
+//         }
+//     }
+// }
 
 export const parseHTMLFile = async (filePath: string) =>{
     try {
@@ -61,10 +149,14 @@ export const parseHTMLFile = async (filePath: string) =>{
             const product_link = $(elem).find('.product-name h3 a.name-link').attr('href') || "";
             const image = $(elem).find('img.alternate-image').attr('src') || "";
         
-            let price: string = $(elem).find('.product-sales-price').text().trim();
-            
+            let price: string = $(elem).find('.sale-price').text().trim();
+            // console.log(`price test: ${name} : ${price}`);
             if (price === "") {
+                console.log(`EMPTY PRICED ITEM ${name}`);
                 price = $(elem).find('.kit-price-info').text().trim();
+                if (price === ""){
+                    price = $(elem).find('.product-sales-price').text().trim();
+                }
             } else if (price.includes("-")) {
                 price = reformatPrice(price);
             }

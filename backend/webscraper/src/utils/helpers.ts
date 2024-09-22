@@ -12,6 +12,15 @@ export const fileToGenerativePart = (path: string, mimeType: string) =>{
     };
 }
 
+export const isValidURL = (url: string): boolean =>{
+  try {
+    new URL(url);  // Will throw an error if the URL is invalid
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 
 export const reformatPrice = (priceString: string) => {
   const cleanedPrice = priceString
