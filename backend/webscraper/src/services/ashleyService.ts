@@ -7,14 +7,32 @@ import { isValidURL, reformatPrice, fileToGenerativePart, downloadImage } from '
 import * as cheerio from 'cheerio';
 import prisma from '../prisma/prisma.js';
 import axios from 'axios';
+import { createLogger, transports, format } from 'winston';
+import { fileURLToPath } from 'url';
+
+// Manually define __dirname in ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const gemini = process.env.GEMINI || "";
 
 
+const logger = createLogger({
+    level: 'info', // Set the logging level
+    format: format.combine(
+      format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), // Add timestamp
+      format.printf(({ timestamp, level, message }) => {
+        return `${timestamp} [${level.toUpperCase()}]: ${message}`;
+      })
+    ),
+    transports: [
+      new transports.File({ filename: path.join(__dirname, 'app.log') }), // Log to a file
+      new transports.Console() // Optionally log to console too
+    ]
+});
 
 
-
-export const scrapePage = async (url: string) =>{
+export const scrapePage = async (url: string, file_path: string) =>{
 
     if (!isValidURL(url)){
         return false;
@@ -30,7 +48,7 @@ export const scrapePage = async (url: string) =>{
         data: {
             url: url,
             method: 'GET',
-            retryNum: 1,
+            retryNum: 2,
             geo: 'us',
             js: true,
             blockImages: false,
@@ -57,13 +75,10 @@ export const scrapePage = async (url: string) =>{
         }
       
         console.log('target website response status: ', resJson.info.statusCode);
-        console.log('target website response body: ', resJson.body);
 
-        console.log(response.data);
-        const filePath = 'src/html_files/ashley_couches/couch_page_1.html'; // Change this to your desired file path
 
         // Write the content to the file, overwriting it each time
-        fs.writeFileSync(filePath, resJson.body, 'utf8'); // Use 'utf8' encoding
+        fs.writeFileSync(file_path, resJson.body, 'utf8'); // Use 'utf8' encoding
         return true;
     } catch (error) {
         console.error(error);
@@ -73,42 +88,80 @@ export const scrapePage = async (url: string) =>{
 
 }
 
-// export const scrapeAllCouches = async () =>{
-//     const base_url: string = 'https://www.ashleyfurniture.com/c/furniture/living-room/sofas/'
-//     // https://www.ashleyfurniture.com/c/furniture/living-room/sofas/?start=48&sz=48
-//     for(let i = 1; i < 7; i++){
-//         let multi: Number = i * 48;
-//         const new_url: string = `${base_url}?start=${multi}&sz=48`;
+const base_url: string = 'https://www.ashleyfurniture.com/c/furniture/living-room/sofas/';
 
-//         try{
-//             const scrape_result = await scrapePage(new_url);
-//             if (scrape_result){
-//                 const products = await parseHTMLFile('src/html_files/ashley_couches/couch_page_1.html');
-		
-//                 if (products != undefined){
-//                     const analyzed_products = await materialAnalyzer(products);
-//                     const result = await addCouches(analyzed_products);  
-//                     if (result.success) {
-//                         console.log("Couches added successfully");
-//                         console.log(analyzed_products);
-//                         return analyzed_products;
-//                     } else {
-//                         console.error("Failed to add couches:", result.error);
-//                         return null;
-//                     }			
-//                 }else{
-//                     console.error("ERROR: products are undefined, html was not parsed properly");
-//                     return null;
-//                 }            
-//             }else{
-//                 console.log("This page was not able to be scraped: ", new_url)
-//             }
-//         }catch(error){
-//             console.error("ERROR: one of the pages weren't able to be scraped");
-//             return null
-//         }
-//     }
-// }
+// Helper function for delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+export const scrapeCouches = async (pages: number) => {
+  const maxRetries = 5;  // Max retry attempts
+  let backoff = 2000;    // Start with 2 seconds delay between retries
+
+  // Loop through the pages (from page 1 to 6)
+  for (let i = 0; i < pages; i++) {
+    let multi: number = i * 48;
+    let url: string = base_url;
+
+    if (i != 0){
+        url = `${base_url}?start=${multi}&sz=48`;
+    }
+    console.log(`Scraping page ${i} with URL: ${url}`);
+
+    let retries = 0;
+    while (retries < maxRetries) {
+      try {
+        const file_path = `src/html_files/ashley_couches/couch_page_${i+1}.html`;
+
+        let scrape_result = await scrapePage(url, file_path);  // Scrape the page
+        
+
+        if (scrape_result) {
+          // If scraping was successful, process the HTML
+          const products = await parseHTMLFile(file_path);
+          
+          if (products) {
+            const analyzed_products = await materialAnalyzer(products);
+            const result = await addCouches(analyzed_products);
+
+            if (result.success) {
+              console.log("Couches added successfully for page", i);
+              console.log(analyzed_products);
+              break;  // Exit retry loop if successful
+            } else {
+              console.error("Failed to add couches:", result.error);
+              break;  // Exit retry loop on failure
+            }
+          } else {
+            console.error("ERROR: products are undefined, HTML was not parsed properly");
+            break;  // Exit retry loop if parsing failed
+          }
+        } else {
+          console.log("Scraping unsuccessful, retrying...");
+        }
+
+      } catch (error) {
+        console.error("Error during scraping:", error);
+      }
+
+      // Wait before the next retry
+      retries++;
+      console.log(`Retry attempt ${retries}/${maxRetries} for page ${i}, waiting ${backoff / 1000} seconds...`);
+      await delay(backoff);
+      backoff *= 2;  // Exponential backoff (double the delay each time)
+    }
+
+    if (retries === maxRetries) {
+      console.error(`Max retries reached for page ${i}. Scraping failed.`);
+    }
+
+    // Reset backoff after each page is processed
+    backoff = 2000;
+  }
+
+
+
+  console.log("All pages processed.");
+};
 
 export const parseHTMLFile = async (filePath: string) =>{
     try {
@@ -156,6 +209,10 @@ export const parseHTMLFile = async (filePath: string) =>{
                 price = $(elem).find('.kit-price-info').text().trim();
                 if (price === ""){
                     price = $(elem).find('.product-sales-price').text().trim();
+                }
+
+                if (price === ""){
+                    price = "0";
                 }
             } else if (price.includes("-")) {
                 price = reformatPrice(price);
@@ -306,7 +363,19 @@ export const addCouches = async (product_array: ScrapedProduct[]) => {
                 where: { name: p.name }
             });
 
-            if (!existingCouch){
+            if (existingCouch?.price === "0" && p.price != "0"){
+                logger.info(`updating ${existingCouch.name} with a new price ${existingCouch.price}`);
+                await prisma.couch.update({
+                    where: { name: existingCouch.name },  // Identify the row to update by ID
+                    data: {
+                        price: p.price,             // Update specific fields (e.g., price)
+                        image: p.image,             // Optionally update other fields
+                        material: p.material,       // Update material, etc.
+                        productLink: p.productLink
+                    }
+                });
+            }
+            else if (!existingCouch){
                 await prisma.couch.create({
                     data: {
                         name: p.name,
