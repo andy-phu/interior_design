@@ -32,90 +32,15 @@ const logger = createLogger({
 });
 
 
-export const scrapePage = async (url: string, file_path: string) =>{
-
-    if (!isValidURL(url)){
-        return false;
-    }
-    const options = {
-        method: 'POST',
-        url: 'https://scrapeninja.p.rapidapi.com/scrape-js',
-        headers: {
-          'x-rapidapi-key': '3406cf51b5mshba278aa6fac79b7p1bedc0jsn58a074047b14',
-          'x-rapidapi-host': 'scrapeninja.p.rapidapi.com',
-          'Content-Type': 'application/json'
-        },
-        data: {
-            url: url,
-            method: 'GET',
-            retryNum: 2,
-            geo: 'us',
-            js: true,
-            blockImages: false,
-            blockMedia: false,
-            viewport: {
-              width: 353,
-              height: 745,
-              deviceScaleFactor: 3,
-              isMobile: true,
-              hasTouch: true,
-              isLandscape: false
-            },
-            waitForSelector: '.sale-price'
-        }
-    };
-
-    try {
-        const response = await axios.request(options);
-        let resJson = await response.data;
-
-        // Basic error handling. Modify if neccessary
-        if (!resJson.info || ![200, 404].includes(resJson.info.statusCode)) {
-            throw new Error(JSON.stringify(resJson));
-        }
-      
-        console.log('target website response status: ', resJson.info.statusCode);
-
-
-        // Write the content to the file, overwriting it each time
-        fs.writeFileSync(file_path, resJson.body, 'utf8'); // Use 'utf8' encoding
-        return true;
-    } catch (error) {
-        console.error(error);
-        return false;
-    }
-
-
-}
 
 const base_url: string = 'https://www.ashleyfurniture.com/c/furniture/living-room/sofas/';
 
-// Helper function for delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const scrapeCouches = async (pages: number) => {
-  const maxRetries = 5;  // Max retry attempts
-  let backoff = 2000;    // Start with 2 seconds delay between retries
 
-  // Loop through the pages (from page 1 to 6)
   for (let i = 0; i < pages; i++) {
-    let multi: number = i * 48;
-    let url: string = base_url;
-
-    if (i != 0){
-        url = `${base_url}?start=${multi}&sz=48`;
-    }
-    console.log(`Scraping page ${i} with URL: ${url}`);
-
-    let retries = 0;
-    while (retries < maxRetries) {
-      try {
+    try {
         const file_path = `src/html_files/ashley_couches/couch_page_${i+1}.html`;
-
-        let scrape_result = await scrapePage(url, file_path);  // Scrape the page
         
-
-        if (scrape_result) {
           // If scraping was successful, process the HTML
           const products = await parseHTMLFile(file_path);
           
@@ -135,27 +60,11 @@ export const scrapeCouches = async (pages: number) => {
             console.error("ERROR: products are undefined, HTML was not parsed properly");
             break;  // Exit retry loop if parsing failed
           }
-        } else {
-          console.log("Scraping unsuccessful, retrying...");
-        }
 
       } catch (error) {
         console.error("Error during scraping:", error);
       }
 
-      // Wait before the next retry
-      retries++;
-      console.log(`Retry attempt ${retries}/${maxRetries} for page ${i}, waiting ${backoff / 1000} seconds...`);
-      await delay(backoff);
-      backoff *= 2;  // Exponential backoff (double the delay each time)
-    }
-
-    if (retries === maxRetries) {
-      console.error(`Max retries reached for page ${i}. Scraping failed.`);
-    }
-
-    // Reset backoff after each page is processed
-    backoff = 2000;
   }
 
 
