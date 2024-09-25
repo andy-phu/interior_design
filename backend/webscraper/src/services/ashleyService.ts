@@ -33,13 +33,12 @@ const logger = createLogger({
 
 
 
-const base_url: string = 'https://www.ashleyfurniture.com/c/furniture/living-room/sofas/';
 
 export const scrapeCouches = async (pages: number) => {
 
   for (let i = 0; i < pages; i++) {
     try {
-        const file_path = `src/html_files/ashley_couches/couch_page_${i+1}.html`;
+        const file_path = `src/html_files/ashley_couches/couch${i+1}.html`;
         
           // If scraping was successful, process the HTML
           const products = await parseHTMLFile(file_path);
@@ -51,7 +50,6 @@ export const scrapeCouches = async (pages: number) => {
             if (result.success) {
               console.log("Couches added successfully for page", i);
               console.log(analyzed_products);
-              break;  // Exit retry loop if successful
             } else {
               console.error("Failed to add couches:", result.error);
               break;  // Exit retry loop on failure
