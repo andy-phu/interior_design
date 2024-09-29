@@ -16,7 +16,6 @@ const __dirname = path.dirname(__filename);
 
 const gemini = process.env.GEMINI || "";
 
-
 const logger = createLogger({
     level: 'info', // Set the logging level
     format: format.combine(
@@ -33,44 +32,7 @@ const logger = createLogger({
 
 
 
-
-export const scrapeCouches = async (pages: number) => {
-
-  for (let i = 0; i < pages; i++) {
-    try {
-        const file_path = `src/html_files/ashley_couches/couch${i+1}.html`;
-        
-          // If scraping was successful, process the HTML
-          const products = await parseHTMLFile(file_path);
-          
-          if (products) {
-            const analyzed_products = await materialAnalyzer(products);
-            const result = await addCouches(analyzed_products);
-
-            if (result.success) {
-              console.log("Couches added successfully for page", i);
-              console.log(analyzed_products);
-            } else {
-              console.error("Failed to add couches:", result.error);
-              break;  // Exit retry loop on failure
-            }
-          } else {
-            console.error("ERROR: products are undefined, HTML was not parsed properly");
-            break;  // Exit retry loop if parsing failed
-          }
-
-      } catch (error) {
-        console.error("Error during scraping:", error);
-      }
-
-  }
-
-
-
-  console.log("All pages processed.");
-};
-
-export const parseHTMLFile = async (filePath: string) =>{
+export const parseHTMLFile = async (filePath: string, product_type: string, category: string, material_list: string[], material_string: string) =>{
     try {
         // Read the HTML file
 
@@ -112,7 +74,6 @@ export const parseHTMLFile = async (filePath: string) =>{
             let price: string = $(elem).find('.sale-price').text().trim();
             // console.log(`price test: ${name} : ${price}`);
             if (price === "") {
-                console.log(`EMPTY PRICED ITEM ${name}`);
                 price = $(elem).find('.kit-price-info').text().trim();
                 if (price === ""){
                     price = $(elem).find('.product-sales-price').text().trim();
@@ -126,8 +87,6 @@ export const parseHTMLFile = async (filePath: string) =>{
             }
 
             let material: string = "";
-            const category: string = "Living Room";
-            const product_type: string = "Couch";
             const brand: string = "Ashley";
 
             const description = $(elem).find('.thumb-link').attr('data-gtmdata');
@@ -138,14 +97,15 @@ export const parseHTMLFile = async (filePath: string) =>{
         
                 const dimension35 = descriptionObject.dimension35;
                 let dimension38: string = descriptionObject.dimension38;
+
+                
                 const dimension47 = descriptionObject.dimension47;
         
                 if (myMap.get(name) == "") {
                     myMap.set(name, dimension35);
                 }
                 
-                const material_list: string[] = ["Fabric", "Chenille", "Leather", "Faux Leather", "Velvet", "Performance Fabric"];
-                
+
                 // Check if the name has one of these materials in it
                 for (let mat of material_list) {
                     if (name.includes(mat)) {
@@ -162,6 +122,11 @@ export const parseHTMLFile = async (filePath: string) =>{
                         dim38_multiple_materials = dimension38.split(",");
                         dimension38 = dim38_multiple_materials[0];
                     }
+
+                    if (dimension38?.includes("and")) {
+                      dim38_multiple_materials = dimension38.split(" ");
+                      dimension38 = dim38_multiple_materials[0];
+                    }
         
                     if (dimension47 != "" && dimension38 != "" && material_list.includes(dimension47)) {
                         material = dimension47;
@@ -173,7 +138,7 @@ export const parseHTMLFile = async (filePath: string) =>{
                         // Use Gemini API to identify the material
                         // counter += 1;
                         material = "";
-                        console.log(`Use Gemini API for the couch ${name}`);
+                        console.log(`Use Gemini API for the ${product_type} ${name}`);
                     }
                 }
             }
@@ -186,7 +151,7 @@ export const parseHTMLFile = async (filePath: string) =>{
         
         //go through each product with empty materials and get groups of 5 products to download their uris
         //and put them through the gemini api 
-        return materialAnalyzer(product_array);
+        return materialAnalyzer(product_array, product_type, material_string);
     } catch (error) {
         console.error('Error:', error);
     }
@@ -194,7 +159,7 @@ export const parseHTMLFile = async (filePath: string) =>{
 
 
 
-export const materialAnalyzer = async (product_array: ScrapedProduct[]): Promise<ScrapedProduct[]> => {
+export const materialAnalyzer = async (product_array: ScrapedProduct[], product_type: string, material_string: string): Promise<ScrapedProduct[]> => {
     let valid_mats: ScrapedProduct[] = product_array.filter((prod) => (prod.material != ""));
     let invalid_mats: ScrapedProduct[] = product_array.filter((prod) => prod.material == undefined);
 
@@ -230,7 +195,7 @@ export const materialAnalyzer = async (product_array: ScrapedProduct[]): Promise
         const genAI = new GoogleGenerativeAI(gemini);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const prompt = "Choose one material that represents each sofa in the image uploaded based on these options: Fabric, Chenille, Faux Leather, Velvet, Performance Fabric. Make sure you response matches the option exactly with the correct spelling and capitalization. Each answer should be separated by a comma on one line.";
+        const prompt = `Choose one material that represents each ${product_type} in the image uploaded based on these options: ${material_string}. Make sure you response matches the option exactly with the correct spelling and capitalization. Each answer should be separated by a comma on one line.`;
 
         const result = await model.generateContent([prompt, ...imageParts]);
 
@@ -263,17 +228,17 @@ export const materialAnalyzer = async (product_array: ScrapedProduct[]): Promise
 };
 
 
-export const addCouches = async (product_array: ScrapedProduct[]) => {
+export const addToDB = async (product_array: ScrapedProduct[]) => {
     try {
         for (let p of product_array) {
-            const existingCouch = await prisma.couch.findUnique({
+            const existing = await prisma.product.findUnique({
                 where: { name: p.name }
             });
 
-            if (existingCouch?.price === "0" && p.price != "0"){
-                logger.info(`updating ${existingCouch.name} with a new price ${existingCouch.price}`);
-                await prisma.couch.update({
-                    where: { name: existingCouch.name },  // Identify the row to update by ID
+            if (existing?.price === "0" && p.price != "0"){
+                logger.info(`updating ${existing.name} with a new price ${existing.price}`);
+                await prisma.product.update({
+                    where: { name: existing.name },  // Identify the row to update by ID
                     data: {
                         price: p.price,             // Update specific fields (e.g., price)
                         image: p.image,             // Optionally update other fields
@@ -282,8 +247,8 @@ export const addCouches = async (product_array: ScrapedProduct[]) => {
                     }
                 });
             }
-            else if (!existingCouch){
-                await prisma.couch.create({
+            else if (!existing){
+                await prisma.product.create({
                     data: {
                         name: p.name,
                         image: p.image, 
