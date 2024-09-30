@@ -235,7 +235,7 @@ export const addToDB = async (product_array: ScrapedProduct[]) => {
                 where: { name: p.name }
             });
 
-            if (existing?.price === "0" && p.price != "0"){
+            if (existing && existing.price === "0" && p.price != "0"){
                 logger.info(`updating ${existing.name} with a new price ${existing.price}`);
                 await prisma.product.update({
                     where: { name: existing.name },  // Identify the row to update by ID
