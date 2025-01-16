@@ -12,6 +12,8 @@ export const fileToGenerativePart = (path: string, mimeType: string) =>{
     };
 }
 
+export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const isValidURL = (url: string): boolean =>{
   try {
     new URL(url);  // Will throw an error if the URL is invalid

@@ -3,8 +3,10 @@ export type ScrapedProduct = {
     image: string | "";
     price: string | "";
     category: string | "";
-    productType: string | "";
+    product_type: string | "";
     brand: string | "";
     material: string | "";
-    productLink: string | "";
+    product_link: string | "";
+    style: string | "";
+    description: string | "";
   };
