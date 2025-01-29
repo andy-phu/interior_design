@@ -22,3 +22,9 @@ model Product {
 }
 
 
+
+model User{
+  user_id Int @id
+  product_id Int
+}
+

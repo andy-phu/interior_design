@@ -1,39 +1,24 @@
 package main
 
 import(
-	"fmt"
+	// "fmt"
     "log"
-	"server/internal/embeddings"
-	"github.com/joho/godotenv"
+	// "github.com/joho/godotenv"
+	// "server/internal/setup"
+	"server/internal/api"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
 
-	err := godotenv.Load()
-    if err != nil {
-        log.Fatalf("Error loading .env file: %v", err)
-    }
+	// setup.Init()
+	// Uncomment only to reinitialize the databases 
 
 
-	//initialize pinecone client 
-    pc, err := embeddings.PineconeClient()
-    if err != nil {
-        log.Fatalf("Error initializing Pinecone client: %v", err)
-    }
+	r := gin.Default()
+	api.RegisterRoutes(r)
 
-    fmt.Println("Pinecone client initialized successfully:", pc)
-
-	//access supabase 
-	sc, err := embeddings.DBClient()
-	if err != nil {		
-		log.Fatalf("Error initializing Supabase client: %v", err)
-	}
-
-	fmt.Println("Supabase client initialized successfully")
-
-	embeddings, err := embeddings.DescriptionEmbedding(sc, pc)
-
-	fmt.Println("Embeddings:", embeddings)
-
+	log.Println("Server running on port 8080...")
+	r.Run(":8080") 
 
 }
