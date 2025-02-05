@@ -24,7 +24,8 @@ model Product {
 
 
 model User{
-  user_id Int @id
+  id      Int @id @default(autoincrement()) // Unique identifier for each row
+  user_id Int 
   product_id Int
 }
 
