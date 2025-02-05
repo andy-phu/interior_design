@@ -145,7 +145,7 @@ export const parseHTMLFile = async (filePath: string, product_type: string, cate
         
             
             //make objects even if the materials are empty
-            product_array.push({"name": name, "image": image, "price": price, "category": category, "productType": product_type, "material": material, "productLink": product_link, "brand" : brand});
+            product_array.push({"name": name, "image": image, "price": price, "category": category, "product_type": product_type, "material": material, "product_link": product_link, "brand" : brand, "style": "", "description":""});
         }
 
         
@@ -158,18 +158,21 @@ export const parseHTMLFile = async (filePath: string, product_type: string, cate
 }
 
 
+//splits array into smaller chunks based on the size given
+function chunkArray<T>(array: T[], size: number): T[][] {
+    const result: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+        result.push(array.slice(i, i + size));
+    }
+    return result;
+}
 
+//figure out a way to incorporate the style analyzer in this one function so you dont have to call gemini 2x the amt
+//thinking abt running gemini for each product getting material and style but only updating material if the material is invalid 
 export const materialAnalyzer = async (product_array: ScrapedProduct[], product_type: string, material_string: string): Promise<ScrapedProduct[]> => {
     let valid_mats: ScrapedProduct[] = product_array.filter((prod) => (prod.material != ""));
     let invalid_mats: ScrapedProduct[] = product_array.filter((prod) => prod.material == undefined);
 
-    function chunkArray<T>(array: T[], size: number): T[][] {
-        const result: T[][] = [];
-        for (let i = 0; i < array.length; i += size) {
-            result.push(array.slice(i, i + size));
-        }
-        return result;
-    }
 
     // Chunk invalid_mats into groups of 5
     const chunks = chunkArray(invalid_mats, 5);
@@ -195,7 +198,7 @@ export const materialAnalyzer = async (product_array: ScrapedProduct[], product_
         const genAI = new GoogleGenerativeAI(gemini);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const prompt = `Choose one material that represents each ${product_type} in the image uploaded based on these options: ${material_string}. Make sure you response matches the option exactly with the correct spelling and capitalization. Each answer should be separated by a comma on one line.`;
+        const prompt = `Choose one material that represents each ${product_type} in the image uploaded based on these options: ${material_string}. Make sure your response matches the option exactly with the correct spelling and capitalization. Each answer should be separated by a comma on one line.`;
 
         const result = await model.generateContent([prompt, ...imageParts]);
 
@@ -219,6 +222,7 @@ export const materialAnalyzer = async (product_array: ScrapedProduct[], product_
         }
     }
 
+    // console.log("finished getting materials from gemini");
     for (let i = 0; i < invalid_mats.length; i++){
         invalid_mats[i].material = final_materials[i];
     }
@@ -226,6 +230,138 @@ export const materialAnalyzer = async (product_array: ScrapedProduct[], product_
     // Return the updated product array with identified materials
     return [...valid_mats, ...invalid_mats];
 };
+
+
+//goes through the product array after it has all the materials from gemini and 
+//have gemini give each product a style based on the style string 
+export const getStyle = async (product_array: ScrapedProduct[], style_string: string): Promise<ScrapedProduct[]> =>{
+    const product_type = product_array[0].product_type;
+    const chunks = chunkArray(product_array, 10);
+    let final_styles: string[] = [];
+
+    for (const chunk of chunks) {
+        // Extract images from the chunk
+        const images: (string | undefined)[] = chunk.map((prod) => prod.image);
+        const tempFiles: string[] = []; // Array to store temporary file paths
+        const imageParts = [];  
+
+        for (let i = 0; i < images.length; i++) {
+            if (images[i] !== undefined)    {
+                const tempFilePath = path.join(os.tmpdir(), `temp_image_${i}.webp`);
+                const imagePath = images[i] ?? "";
+                await downloadImage(imagePath, tempFilePath); // Replace with actual download logic
+                tempFiles.push(tempFilePath);
+                
+                // Converts local file information to a GoogleGenerativeAI.Part object.
+                imageParts.push(fileToGenerativePart(tempFilePath, "image/webp"));
+            }
+        }
+        const genAI = new GoogleGenerativeAI(gemini);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // console.log(`style chunk .......... starting`);
+        const prompt = `Choose one style that represents each ${product_type} in the image uploaded based on these options: ${style_string}. Make sure your response matches the option exactly with the correct spelling and capitalization. Each answer should be separated by a comma on one line.`;
+
+        const result = await model.generateContent([prompt, ...imageParts]);
+
+        const result_arr = result.response.text().trim().split(",");
+
+
+        let trimmed_styles = result_arr.map(style => style.trim());
+        // console.log("trimmed_styles:",trimmed_styles);
+        final_styles = final_styles.concat(trimmed_styles);
+
+        // Clean up temporary files (optional)
+        if (tempFiles.length > 0) {
+            for (const tempFile of tempFiles) {
+                try {
+                    // Check if the file exists before attempting to delete it
+                    if (fs.existsSync(tempFile)) {
+                        await fs.unlinkSync(tempFile);  // Remove the file
+                    }
+                } catch (error) {
+                    console.error(`Error deleting temporary file: ${tempFile}`, error);
+                }
+            }
+        }
+
+
+    }
+
+    for (let i = 0; i < final_styles.length; i++){
+        product_array[i].style = final_styles[i];
+    }
+
+    return product_array;
+}
+
+
+// Generates a description for each product using Gemini AI based on the image
+export const getDescription = async (product_array: ScrapedProduct[]): Promise<ScrapedProduct[]> => {
+    const chunks = chunkArray(product_array, 8);  // Break the product array into chunks of 10
+    let final_descriptions: string[] = [];
+
+    for (const chunk of chunks) {
+        // Extract images from the chunk
+        const images: (string | undefined)[] = chunk.map((prod) => prod.image);
+        const tempFiles: string[] = []; // Array to store temporary file paths
+        const imageParts = [];  
+
+        for (let i = 0; i < images.length; i++) {
+            if (images[i] !== undefined) {
+                const tempFilePath = path.join(os.tmpdir(), `temp_image_${i}.webp`);
+                const imagePath = images[i] ?? "";
+                await downloadImage(imagePath, tempFilePath); // Replace with actual download logic
+                tempFiles.push(tempFilePath);
+                
+                // Converts local file information to a GoogleGenerativeAI.Part object.
+                imageParts.push(fileToGenerativePart(tempFilePath, "image/webp"));
+            }
+        }
+
+        const genAI = new GoogleGenerativeAI(gemini);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        console.log(`description chunk .......... starting`);
+        
+        const prompt = `Generate a product description for each image uploaded in one sentence. Each answer should be separated by a comma on one line. This is an example for a description: Two beige upholstered bar stools with a light wood frame`;
+
+        const result = await model.generateContent([prompt, ...imageParts]);
+        
+        // Split the result into an array of descriptions
+        const result_arr = result.response.text().trim().split(",");
+
+        let trimmed_descriptions = result_arr.map(desc => desc.trim());
+        console.log("descriptions:", result_arr);
+        final_descriptions = final_descriptions.concat(trimmed_descriptions);
+
+        // Clean up temporary files
+        if (tempFiles.length > 0) {
+            for (const tempFile of tempFiles) {
+                try {
+                    if (fs.existsSync(tempFile)) {
+                        await fs.unlinkSync(tempFile);  // Remove the file
+                    }
+                } catch (error) {
+                    console.error(`Error deleting temporary file: ${tempFile}`, error);
+                }
+            }
+        }
+    }
+    
+
+    // Assign the generated descriptions back to the products
+    for (let i = 0; i < final_descriptions.length; i++) {
+        if (final_descriptions[i] === undefined){
+            console.log("description is undefined for", product_array[i]);
+        }
+        if (product_array[i] !== undefined){
+            product_array[i].description = final_descriptions[i];
+        }
+        
+    }   
+
+    return product_array;
+}
 
 
 export const addToDB = async (product_array: ScrapedProduct[]) => {
@@ -243,7 +379,7 @@ export const addToDB = async (product_array: ScrapedProduct[]) => {
                         price: p.price,             // Update specific fields (e.g., price)
                         image: p.image,             // Optionally update other fields
                         material: p.material,       // Update material, etc.
-                        productLink: p.productLink
+                        product_link: p.product_link
                     }
                 });
             }
@@ -254,10 +390,12 @@ export const addToDB = async (product_array: ScrapedProduct[]) => {
                         image: p.image, 
                         price: p.price, 
                         category: p.category,
-                        productType: p.productType,
+                        product_type: p.product_type,
                         brand: p.brand,
                         material: p.material, 
-                        productLink: p.productLink 
+                        product_link: p.product_link,
+                        style: p.style,
+                        description: p.description
                     }
                 });
             }else{

@@ -2,7 +2,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 import getAshleyCouches from './routes/routes.js';
 import getAshleyCoffeeTables from './routes/routes.js';
-
+import getAshleyAccentChairs  from './routes/routes.js';
+import getAshleyBarStools  from './routes/routes.js';
 
 dotenv.config();
 
@@ -10,8 +11,10 @@ const app = express();
 const port = process.env.PORT || 8000;
 
 app.use(express.json()); // Middleware to parse JSON bodies
-app.use('/api', getAshleyCouches); // Mount the product routes at the /api path
-app.use('/api', getAshleyCoffeeTables);
+// app.use('/api', getAshleyCouches); // Mount the product routes at the /api path
+// app.use('/api', getAshleyCoffeeTables);
+// app.use('/api', getAshleyAccentChairs);
+app.use('/api', getAshleyBarStools);
 
 app.get('/api', (req, res) => {
   res.send('Server is working!');

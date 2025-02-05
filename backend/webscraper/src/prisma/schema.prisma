@@ -8,15 +8,24 @@ generator client {
 }
 
 model Product {
-    id          Int     @id @default(autoincrement())
-    name        String @unique
-    image       String   
-    price       String   
-    category    String   
-    productType String  
-    brand       String   
-    material    String   
-    productLink String   
+    id            Int     @id @default(autoincrement())
+    name          String @unique
+    image         String   
+    price         String   
+    category      String   
+    product_type  String  
+    brand         String   
+    material      String   
+    product_link  String  
+    style         String 
+    description   String
 }
 
+
+
+model User{
+  id      Int @id @default(autoincrement()) // Unique identifier for each row
+  user_id Int 
+  product_id Int
+}
 
