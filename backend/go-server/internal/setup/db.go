@@ -176,6 +176,9 @@ func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, meta
 		likedProductsInterface[i] = v
 	}
 
+	fmt.Println("metadata", metadata)
+
+	
 	//have to figure out a way to make this dynamic based on what filter the user chooses
 	metadataMap := map[string]interface{}{
 

@@ -30,7 +30,7 @@ func main() {
 		Category: "Dining",
 		Material: "Wood and Metal",
 		Style: "Farmhouse",
-		ProductType: "Bars stool",
+		ProductType: "Bar Stool",
 	};
 	
 	likedProdIds := []string{"272", "600"}
