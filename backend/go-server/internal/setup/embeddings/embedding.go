@@ -18,6 +18,10 @@ import (
 type Data struct {
     ID   string
     Text string
+	Category string 
+	Material string
+	Style string 
+	ProductType string 
 }
 
 func PineconeClient()(*pinecone.Client, error) {
@@ -57,7 +61,7 @@ func DBClient()(*pgx.Conn, error) {
 }
 
 
-
+//uses hugging face model to embed text string 
 func GenerateEmbeddings(texts []string) ([][]float64, error) {
 	api_url := "https://api-inference.huggingface.co/models/BAAI/bge-large-en-v1.5"
 	api_key := os.Getenv("HUGGINGFACE")
@@ -102,6 +106,7 @@ func GenerateEmbeddings(texts []string) ([][]float64, error) {
 		return nil, fmt.Errorf("failed to parse response: %v", err)
 	}
 
+	fmt.Println("embedding response: ", embeddingResp)
 	return embeddingResp, nil
 }
 
@@ -113,7 +118,7 @@ func convertToFloat32(arr []float64) []float32 {
 	return float32Arr
 }
 
-func DescriptionEmbedding(sc *pgx.Conn, pc *pinecone.Client)(string, error) {
+func MetadataEmbeddings(sc *pgx.Conn, pc *pinecone.Client)(string, error) {
 	ctx := context.Background()
 
 	idx_model, err := pc.DescribeIndex(ctx, "interior-design")
@@ -124,7 +129,7 @@ func DescriptionEmbedding(sc *pgx.Conn, pc *pinecone.Client)(string, error) {
 		log.Fatalf("Failed to create IndexConnection1 for Host %v: %v", idx_model.Host, err)
 	}
 
-	rows, err := sc.Query(context.Background(), `SELECT id, description FROM "Product"`)
+	rows, err := sc.Query(context.Background(), `SELECT id, description, category, material, style, product_type FROM "Product"`)
 	data := []models.Embedding{}
 
 	var texts []string
@@ -137,15 +142,25 @@ func DescriptionEmbedding(sc *pgx.Conn, pc *pinecone.Client)(string, error) {
     for rows.Next() {
         var id string
         var description string
-        err := rows.Scan(&id, &description)
+		var category string 
+		var material string 
+		var style string 
+		var productType string 
+
+        err := rows.Scan(&id, &description, &category, &material, &style, &productType)
         if err != nil {
             log.Fatalf("Error scanning row: %v", err)
         }
 		data = append(data, models.Embedding{
 			ID:          id,
 			Description: description,
+			Category: category,
+			Material: material,
+			Style: style,
+			ProductType: productType,
 		})
 
+		//only need to embed the description to create the vector value 
 		texts = append(texts, description) // Collect text for embedding
 
     }
@@ -161,7 +176,12 @@ func DescriptionEmbedding(sc *pgx.Conn, pc *pinecone.Client)(string, error) {
 
 	for i, emb := range embeddings {
 		metadata_map := map[string]interface{}{
+			"id": data[i].ID,
 			"description": data[i].Description,
+			"category": data[i].Category,
+			"material": data[i].Material,
+			"style": data[i].Style,
+			"productType": data[i].ProductType,
 		}
 	
 		metadata_struct, err := structpb.NewStruct(metadata_map)

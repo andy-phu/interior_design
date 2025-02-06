@@ -2,15 +2,34 @@ package setup
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-    "github.com/pinecone-io/go-pinecone/v2/pinecone"
+	"strconv"
+	"server/internal/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
-	"encoding/json"
-	"strconv"
+	"github.com/pinecone-io/go-pinecone/v2/pinecone"
+	"google.golang.org/protobuf/types/known/structpb"
 )
+
+// pinecone respoonse structs
+type Vector struct {
+	Id string `json:"id"`
+}
+
+type Match struct {
+	Vector Vector  `json:"vector"`
+	Score  float32 `json:"score"`
+}
+
+type Response struct {
+	Matches []Match `json:"matches"`
+	Usage   struct {
+		ReadUnits int `json:"read_units"`
+	} `json:"usage"`
+}
 
 type PineconeResponse struct {
 	Vectors map[string]PineconeVector `json:"vectors"`
@@ -50,20 +69,17 @@ func ConnectPinecone() (*pinecone.Client, error) {
 	pincecone := os.Getenv("PINECONE")
 	fmt.Println(pincecone)
 
-    pc, err := pinecone.NewClient(pinecone.NewClientParams{
-        ApiKey: pincecone,
-    })
+	pc, err := pinecone.NewClient(pinecone.NewClientParams{
+		ApiKey: pincecone,
+	})
 
-
-    if err != nil {
-        log.Fatalf("Failed to create Client: %v", err)
+	if err != nil {
+		log.Fatalf("Failed to create Client: %v", err)
 		return nil, err
-	}else{
+	} else {
 		return pc, nil
 	}
 }
-
-
 
 func RetrieveUserProducts(userId int) ([]string, error) {
 	sc, err := ConnectSupabase()
@@ -90,11 +106,12 @@ func RetrieveUserProducts(userId int) ([]string, error) {
 		productIdArray = append(productIdArray, productIdStr)
 	}
 
+	defer rows.Close()
+
 	return productIdArray, nil
 }
 
-
-func RetrieveVectors(prodIdArray []string)([][]float32){
+func RetrieveVectors(prodIdArray []string) [][]float32 {
 	ctx := context.Background()
 
 	//query pinecone to get the vectors for the product id from supabase
@@ -105,8 +122,8 @@ func RetrieveVectors(prodIdArray []string)([][]float32){
 	}
 
 	idxModel, err := pc.DescribeIndex(ctx, "interior-design")
-	
-	if err!=nil{
+
+	if err != nil {
 		log.Fatalf("Failed to describe index: %v", err)
 	}
 	idxConnection, err := pc.Index(pinecone.NewIndexConnParams{Host: idxModel.Host, Namespace: "ns1"})
@@ -120,11 +137,11 @@ func RetrieveVectors(prodIdArray []string)([][]float32){
 	if err != nil {
 		log.Fatalf("Failed to fetch vectors: %v", err)
 	}
-	
-	// query the json in res and put the values into a vector array and return 
+
+	// query the json in res and put the values into a vector array and return
 	jsonRes, err := json.Marshal(res)
 
-	if err != nil {		
+	if err != nil {
 		log.Fatalf("Failed to marshal response: %v", err)
 	}
 
@@ -136,16 +153,109 @@ func RetrieveVectors(prodIdArray []string)([][]float32){
 	if err != nil {
 		log.Fatalf("❌ Failed to parse JSON: %v", err)
 	}
-	
+
 	var vectorArray [][]float32
 
 	//the parsed response will now be a a map called vectors where the map contains a key for each product id
-	//each product id points to a PineconeVector object containing the same key and its value 
+	//each product id points to a PineconeVector object containing the same key and its value
 	for _, vector := range parsedResponse.Vectors {
 		// fmt.Println("Product ID:", productID)    // ✅ Extracted from the map key
 		vectorArray = append(vectorArray, vector.Values)
 	}
 
 	return vectorArray
+
+}
+
+// returns the productr id of the similar vectors
+func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, metadata models.Metadata) []string {
+
+	// Convert `[]string` to `[]interface{}` for Protobuf compatibility
+	likedProductsInterface := make([]interface{}, len(likedProducts))
+	for i, v := range likedProducts {
+		likedProductsInterface[i] = v
+	}
+
+	//have to figure out a way to make this dynamic based on what filter the user chooses
+	metadataMap := map[string]interface{}{
+
+		//exclude the liked products
+		"id": map[string]interface{}{
+			"$nin": likedProductsInterface, 
+		},
+		"category": map[string]interface{}{
+			"$eq": metadata.Category, 
+		},
+		"material": map[string]interface{}{
+			"$eq": metadata.Material, 
+		},
+		"productType": map[string]interface{}{
+			"$eq": metadata.ProductType, 
+		},
+		"style": map[string]interface{}{
+			"$eq": metadata.Style, 
+		},
+	}
+
+	metadataFilter, err := structpb.NewStruct(metadataMap)
+
+	if err != nil {
+        log.Fatalf("Failed to create metadata map: %v", err)
+    }
+
+	ctx := context.Background()
+
+	//query pinecone to get the vectors for the product id from supabase
+	pc, err := ConnectPinecone()
+	if err != nil {
+		fmt.Println("Failed to connect to Pinecone", err)
+		return nil
+	}
+
+	idxModel, err := pc.DescribeIndex(ctx, "interior-design")
+
+	if err != nil {
+		log.Fatalf("Failed to describe index: %v", err)
+	}
+	idxConnection, err := pc.Index(pinecone.NewIndexConnParams{Host: idxModel.Host, Namespace: "ns1"})
+
+	if err != nil {
+		log.Fatalf("Failed to describe index: %v", err)
+	}
+
+	res, err := idxConnection.QueryByVectorValues(ctx, &pinecone.QueryByVectorValuesRequest{
+		Vector: queryVector,
+		TopK:   20,
+		MetadataFilter: metadataFilter,
+	})
+
+	if err != nil {
+		log.Fatalf("Failed to query vectors: %v", err)
+	}
+
+	if err != nil {
+		log.Fatalf("Failed to serialize response: %v", err)
+	}
+
+	//convert it to json first so that you can convert it to go object
+	jsonRes, _ := json.Marshal(res)
+	var response Response
+	err = json.Unmarshal(jsonRes, &response)
+
+	if err != nil {
+		log.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	var productIdArray []string
+
+	for _, match := range response.Matches {
+
+		vector := match.Vector
+		// fmt.Println("this is the vector struct", match)
+		productIdArray = append(productIdArray, vector.Id)
+	}
+
+	// fmt.Println("These are the similar products: ", productIdArray)
+	return productIdArray
 
 }

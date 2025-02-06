@@ -146,7 +146,7 @@ func CalculateAverageVector(user_id int)([]float32) {
 
 	//2d array containing arrays of float32
 	vectorArray := setup.RetrieveVectors(productArray);
-	fmt.Println(vectorArray)
+	// fmt.Println(vectorArray)
 
 	//sum up the vectors using goroutines 
 	sumVector := SumVectors(vectorArray)
