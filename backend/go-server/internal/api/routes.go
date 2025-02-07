@@ -14,15 +14,20 @@ func RegisterRoutes(r *gin.Engine) {
 			startup.GET("/", controller.Startup)
 		}
 
-		furniture := api.Group("/furniture")
-		{
-			furniture.GET("/", controller.GetAllFurniture)
-		}
+		// furniture := api.Group("/furniture")
+		// {
+		// 	furniture.GET("/", controller.GetAllFurniture)
+		// }
 
 		users := api.Group("/users")
 		{
 			users.GET("/all", controller.GetAllUsers)
+			users.GET("/similar/:user_id", controller.GetSimilarFurniture)
+			
 		}
+
+
+
 		
 
 	}

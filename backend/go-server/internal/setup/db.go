@@ -12,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/pinecone-io/go-pinecone/v2/pinecone"
 	"google.golang.org/protobuf/types/known/structpb"
+	// "server/internal/utils"
 )
 
 // pinecone respoonse structs
@@ -160,6 +161,8 @@ func RetrieveVectors(prodIdArray []string) [][]float32 {
 	//each product id points to a PineconeVector object containing the same key and its value
 	for _, vector := range parsedResponse.Vectors {
 		// fmt.Println("Product ID:", productID)    // ✅ Extracted from the map key
+		// var newVector = utils.FormatVectorValues(vector.Values)
+		// fmt.Println("Vector Values:", newVector)
 		vectorArray = append(vectorArray, vector.Values)
 	}
 
@@ -167,8 +170,51 @@ func RetrieveVectors(prodIdArray []string) [][]float32 {
 
 }
 
+func DynamicMetadataMap(likedProducts []interface{}, metadata models.Metadata) map[string]interface{} {
+	filter := make(map[string]interface{})
+
+	//preadds the likedProducts to the filter
+	filter["id"] = map[string]interface{}{
+		"$nin": likedProducts, 
+	}
+
+	if metadata.Category != "" {
+		filter["category"] = map[string]interface{}{
+			"$eq": metadata.Category,
+		}
+	}
+	if metadata.Material != "" {
+		filter["material"] = map[string]interface{}{
+			"$eq": metadata.Material,
+		}
+	}
+	if metadata.Style != "" {
+		filter["style"] = map[string]interface{}{
+			"$eq": metadata.Style,
+		}
+	}
+	if metadata.ProductType != "" {
+		filter["product_type"] = map[string]interface{}{
+			"$eq": metadata.ProductType,
+		}
+	}
+
+	// Return nil if no filters were added
+	if len(filter) == 0 {
+		fmt.Println("No filters were chosen")
+		return nil
+	}
+
+
+	return filter
+}
+
+
+
+
+
 // returns the productr id of the similar vectors
-func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, metadata models.Metadata) []string {
+func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, filter []string) []string {
 
 	// Convert `[]string` to `[]interface{}` for Protobuf compatibility
 	likedProductsInterface := make([]interface{}, len(likedProducts))
@@ -176,29 +222,38 @@ func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, meta
 		likedProductsInterface[i] = v
 	}
 
+	//convert the filter into a metadata model struct but some of the fields can be empty 
+	metadata := models.Metadata{
+		Category: filter[0],
+		Material: filter[1],
+		Style: filter[2],
+		ProductType: filter[3],
+	}
+
+
+	metadataMap := DynamicMetadataMap(likedProductsInterface, metadata)
+
 	fmt.Println("metadata", metadata)
 
-	
 	//have to figure out a way to make this dynamic based on what filter the user chooses
-	metadataMap := map[string]interface{}{
-
-		//exclude the liked products
-		"id": map[string]interface{}{
-			"$nin": likedProductsInterface, 
-		},
-		"category": map[string]interface{}{
-			"$eq": metadata.Category, 
-		},
-		"material": map[string]interface{}{
-			"$eq": metadata.Material, 
-		},
-		"productType": map[string]interface{}{
-			"$eq": metadata.ProductType, 
-		},
-		"style": map[string]interface{}{
-			"$eq": metadata.Style, 
-		},
-	}
+	// metadataMap := map[string]interface{}{
+	// 	//exclude the liked products
+	// 	"id": map[string]interface{}{
+	// 		"$nin": likedProductsInterface, 
+	// 	},
+	// 	"category": map[string]interface{}{
+	// 		"$eq": metadata.Category, 
+	// 	},
+	// 	"material": map[string]interface{}{
+	// 		"$eq": metadata.Material, 
+	// 	},
+	// 	"productType": map[string]interface{}{
+	// 		"$eq": metadata.ProductType, 
+	// 	},
+	// 	"style": map[string]interface{}{
+	// 		"$eq": metadata.Style, 
+	// 	},
+	// }
 
 	metadataFilter, err := structpb.NewStruct(metadataMap)
 

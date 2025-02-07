@@ -13,8 +13,10 @@ import (
 
 	// "server/internal/setup/embeddings"
 
-	"server/internal/models"
 	"server/internal/controller"
+	"server/internal/models"
+	// "server/internal/utils"
+
 )
 
 func main() {
@@ -25,7 +27,12 @@ func main() {
 
 	//user1 supposed to retrieve product id 272 and 600
 	avgVector := controller.CalculateAverageVector(1)
-	// fmt.Println("this is the average vector: ", avgVector)
+	// formattedVector := utils.FormatVectorValues(avgVector)
+
+
+	// fmt.Println("this is the average vector: ", formattedVector)
+
+	
 	metadata :=  models.Metadata{
 		Category: "Dining",
 		Material: "Wood and Metal",
@@ -36,7 +43,8 @@ func main() {
 	likedProdIds := []string{"272", "600"}
 
 	similarProducts := setup.RetrieveSimilarProducts(avgVector, likedProdIds, metadata)
-	fmt.Println(similarProducts)
+	fmt.Println("These are the similar products: ",similarProducts)
+
 
 	r := gin.Default()
 	api.RegisterRoutes(r)
