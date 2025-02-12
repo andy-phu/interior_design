@@ -46,3 +46,8 @@ type PineconeVector struct {
 	ID     string    `json:"id"`
 	Values []float32 `json:"values"`
 }
+
+type LikeRequest struct {
+	UserID    int `json:"userId"`
+	ProductID int `json:"productId"`
+}

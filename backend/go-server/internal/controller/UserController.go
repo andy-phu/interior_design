@@ -3,9 +3,9 @@ package controller
 import (
 	"net/http"
 	"server/internal/services"
-	"strconv"
-
+	"server/internal/models"
 	"github.com/gin-gonic/gin"
+	"fmt"
 )
 
 // GetAllUsers retrieves all users from the database
@@ -24,19 +24,17 @@ func GetAllUsers(c *gin.Context) {
 
 // StoreLike stores a user's liked product in the database
 func StoreLike(c *gin.Context) {
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+	var req models.LikeRequest
+
+	// Bind JSON body to struct
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
+	fmt.Println(req.UserID, req.ProductID)
+	message, err := services.StoreLikeService(req.UserID, req.ProductID)
 
-	productID, err := strconv.Atoi(c.Param("product_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID format"})
-		return
-	}
 
-	message, err := services.StoreLikeService(userID, productID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
