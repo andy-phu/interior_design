@@ -30,7 +30,7 @@ func StoreLike(c *gin.Context) {
 		return
 	}
 
-	productID, err := strconv.Atoi(c.Param("id"))
+	productID, err := strconv.Atoi(c.Param("product_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID format"})
 		return
