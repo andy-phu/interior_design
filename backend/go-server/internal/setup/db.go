@@ -178,22 +178,22 @@ func DynamicMetadataMap(likedProducts []interface{}, metadata models.Metadata) m
 		"$nin": likedProducts, 
 	}
 
-	if metadata.Category != "" {
+	if metadata.Category != "none" {
 		filter["category"] = map[string]interface{}{
 			"$eq": metadata.Category,
 		}
 	}
-	if metadata.Material != "" {
+	if metadata.Material != "none" {
 		filter["material"] = map[string]interface{}{
 			"$eq": metadata.Material,
 		}
 	}
-	if metadata.Style != "" {
+	if metadata.Style != "none" {
 		filter["style"] = map[string]interface{}{
 			"$eq": metadata.Style,
 		}
 	}
-	if metadata.ProductType != "" {
+	if metadata.ProductType != "none" {
 		filter["product_type"] = map[string]interface{}{
 			"$eq": metadata.ProductType,
 		}
@@ -230,10 +230,10 @@ func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, filt
 		ProductType: filter[3],
 	}
 
-
+	//
 	metadataMap := DynamicMetadataMap(likedProductsInterface, metadata)
 
-	fmt.Println("metadata", metadata)
+	fmt.Println("metadata", metadataMap)
 
 	//have to figure out a way to make this dynamic based on what filter the user chooses
 	// metadataMap := map[string]interface{}{

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 	"log"
 
 	// "github.com/joho/godotenv"
-	"server/internal/setup"
+	// "server/internal/setup"
 
 	"server/internal/api"
 
@@ -13,8 +13,8 @@ import (
 
 	// "server/internal/setup/embeddings"
 
-	"server/internal/controller"
-	"server/internal/models"
+	// "server/internal/controller"
+	// "server/internal/models"
 	// "server/internal/utils"
 
 )
@@ -26,24 +26,24 @@ func main() {
 	//==================================================
 
 	//user1 supposed to retrieve product id 272 and 600
-	avgVector := controller.CalculateAverageVector(1)
+	// avgVector := controller.CalculateAverageVector(1)
 	// formattedVector := utils.FormatVectorValues(avgVector)
 
 
 	// fmt.Println("this is the average vector: ", formattedVector)
 
-	
-	metadata :=  models.Metadata{
-		Category: "Dining",
-		Material: "Wood and Metal",
-		Style: "Farmhouse",
-		ProductType: "Bar Stool",
-	};
-	
-	likedProdIds := []string{"272", "600"}
 
-	similarProducts := setup.RetrieveSimilarProducts(avgVector, likedProdIds, metadata)
-	fmt.Println("These are the similar products: ",similarProducts)
+	// metadata :=  models.Metadata{
+	// 	Category: "Dining",
+	// 	Material: "Wood and Metal",
+	// 	Style: "Farmhouse",
+	// 	ProductType: "Bar Stool",
+	// };
+	
+	// likedProdIds := []string{"272", "600"}
+
+	// similarProducts := setup.RetrieveSimilarProducts(avgVector, likedProdIds, metadata)
+	// fmt.Println("These are the similar products: ",similarProducts)
 
 
 	r := gin.Default()

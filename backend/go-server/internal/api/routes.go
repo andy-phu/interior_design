@@ -21,9 +21,12 @@ func RegisterRoutes(r *gin.Engine) {
 
 		users := api.Group("/users")
 		{
-			users.GET("/all", controller.GetAllUsers)
-			users.GET("/similar/:user_id", controller.GetSimilarFurniture)
-			
+			users.GET("/", controller.GetAllUsers)
+		}
+
+		similar := api.Group("/similar")
+		{
+			similar.GET("/:id", controller.GetSimilarFurniture)
 		}
 
 
