@@ -6,9 +6,6 @@ import (
 	"log"
 	"net/http"
 	"server/internal/setup"
-	"strconv"
-	"sync"
-
 	"github.com/gin-gonic/gin"
 )
 

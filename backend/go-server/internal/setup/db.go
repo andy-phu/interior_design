@@ -7,30 +7,14 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"server/internal/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 	"github.com/pinecone-io/go-pinecone/v2/pinecone"
-	"google.golang.org/protobuf/types/known/structpb"
 	// "server/internal/utils"
 )
 
 // pinecone respoonse structs
-type Vector struct {
-	Id string `json:"id"`
-}
 
-type Match struct {
-	Vector Vector  `json:"vector"`
-	Score  float32 `json:"score"`
-}
-
-type Response struct {
-	Matches []Match `json:"matches"`
-	Usage   struct {
-		ReadUnits int `json:"read_units"`
-	} `json:"usage"`
-}
 
 type PineconeResponse struct {
 	Vectors map[string]PineconeVector `json:"vectors"`
@@ -167,153 +151,5 @@ func RetrieveVectors(prodIdArray []string) [][]float32 {
 	}
 
 	return vectorArray
-
-}
-
-func DynamicMetadataMap(likedProducts []interface{}, metadata models.Metadata) map[string]interface{} {
-	filter := make(map[string]interface{})
-
-	//preadds the likedProducts to the filter
-	filter["id"] = map[string]interface{}{
-		"$nin": likedProducts, 
-	}
-
-	if metadata.Category != "none" {
-		filter["category"] = map[string]interface{}{
-			"$eq": metadata.Category,
-		}
-	}
-	if metadata.Material != "none" {
-		filter["material"] = map[string]interface{}{
-			"$eq": metadata.Material,
-		}
-	}
-	if metadata.Style != "none" {
-		filter["style"] = map[string]interface{}{
-			"$eq": metadata.Style,
-		}
-	}
-	if metadata.ProductType != "none" {
-		filter["product_type"] = map[string]interface{}{
-			"$eq": metadata.ProductType,
-		}
-	}
-
-	// Return nil if no filters were added
-	if len(filter) == 0 {
-		fmt.Println("No filters were chosen")
-		return nil
-	}
-
-
-	return filter
-}
-
-
-
-
-
-// returns the productr id of the similar vectors
-func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, filter []string) []string {
-
-	// Convert `[]string` to `[]interface{}` for Protobuf compatibility
-	likedProductsInterface := make([]interface{}, len(likedProducts))
-	for i, v := range likedProducts {
-		likedProductsInterface[i] = v
-	}
-
-	//convert the filter into a metadata model struct but some of the fields can be empty 
-	metadata := models.Metadata{
-		Category: filter[0],
-		Material: filter[1],
-		Style: filter[2],
-		ProductType: filter[3],
-	}
-
-	//
-	metadataMap := DynamicMetadataMap(likedProductsInterface, metadata)
-
-	fmt.Println("metadata", metadataMap)
-
-	//have to figure out a way to make this dynamic based on what filter the user chooses
-	// metadataMap := map[string]interface{}{
-	// 	//exclude the liked products
-	// 	"id": map[string]interface{}{
-	// 		"$nin": likedProductsInterface, 
-	// 	},
-	// 	"category": map[string]interface{}{
-	// 		"$eq": metadata.Category, 
-	// 	},
-	// 	"material": map[string]interface{}{
-	// 		"$eq": metadata.Material, 
-	// 	},
-	// 	"productType": map[string]interface{}{
-	// 		"$eq": metadata.ProductType, 
-	// 	},
-	// 	"style": map[string]interface{}{
-	// 		"$eq": metadata.Style, 
-	// 	},
-	// }
-
-	metadataFilter, err := structpb.NewStruct(metadataMap)
-
-	if err != nil {
-        log.Fatalf("Failed to create metadata map: %v", err)
-    }
-
-	ctx := context.Background()
-
-	//query pinecone to get the vectors for the product id from supabase
-	pc, err := ConnectPinecone()
-	if err != nil {
-		fmt.Println("Failed to connect to Pinecone", err)
-		return nil
-	}
-
-	idxModel, err := pc.DescribeIndex(ctx, "interior-design")
-
-	if err != nil {
-		log.Fatalf("Failed to describe index: %v", err)
-	}
-	idxConnection, err := pc.Index(pinecone.NewIndexConnParams{Host: idxModel.Host, Namespace: "ns1"})
-
-	if err != nil {
-		log.Fatalf("Failed to describe index: %v", err)
-	}
-
-	res, err := idxConnection.QueryByVectorValues(ctx, &pinecone.QueryByVectorValuesRequest{
-		Vector: queryVector,
-		TopK:   20,
-		MetadataFilter: metadataFilter,
-	})
-
-	if err != nil {
-		log.Fatalf("Failed to query vectors: %v", err)
-	}
-
-	if err != nil {
-		log.Fatalf("Failed to serialize response: %v", err)
-	}
-
-	//convert it to json first so that you can convert it to go object
-	jsonRes, _ := json.Marshal(res)
-	var response Response
-	err = json.Unmarshal(jsonRes, &response)
-
-	if err != nil {
-		log.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	var productIdArray []string
-
-	for _, match := range response.Matches {
-
-		vector := match.Vector
-		// fmt.Println("this is the vector struct", match)
-		productIdArray = append(productIdArray, vector.Id)
-	}
-
-	// fmt.Println("These are the similar products: ", productIdArray)
-	return productIdArray
 
 }

@@ -6,48 +6,14 @@ import (
 	"net/http"
 	"server/internal/setup"
 	"strconv"
-	"sync"
-
 	"github.com/gin-gonic/gin"
+	"server/internal/utils"
+	"server/internal/services"
 )
 
 
 
-func SumVectors(vectorArray [][]float32) []float32 {
-	//sum up the vectors using goroutines 
 
-	//this vector is an array that contains the final floats to be the sum 
-	sumVector := make([]float32, len(vectorArray[0]))
-
-	//wait group determines that we should wait for all go routines to finish before returning
-	var wg sync.WaitGroup
-	//mutex lock/unlock
-	var mu sync.Mutex
-
-
-	for _, vector := range vectorArray{
-		//keeps track of how many goroutines we have to wait for 
-		wg.Add(1)
-
-		//create a go routine to add one vector into the sumVector
-		go func(vector []float32) {
-
-			defer wg.Done()
-			//lock the sumVector adding while a go routine is adding so that others' aren't adding a the same time 
-			mu.Lock()
-			for i, v := range vector {
-				sumVector[i] += float32(v) 
-			}
-
-			mu.Unlock()
-
-		}(vector)//immediately invokes the go routine and passes the vector in
-
-		wg.Wait()
-		
-	}
-	return sumVector
-}
 
 
 
@@ -72,7 +38,7 @@ func CalculateAverageVector(user_id int)([]float32) {
 	// fmt.Println(vectorArray)
 
 	//sum up the vectors using goroutines 
-	sumVector := SumVectors(vectorArray)
+	sumVector := utils.SumVectors(vectorArray)
 
 	//get the average vector
 	averageVector := make([]float32, len(sumVector))
@@ -105,11 +71,11 @@ func GetSimilarFurniture(c *gin.Context) {
 
 	//get the average for the user 
 	avgVector := CalculateAverageVector(userId)
-	fmt.Println("this is the average vector: ", avgVector)
+	// fmt.Println("this is the average vector: ", avgVector)
 
 	//get the similar products based on the filters and the average vector 
 	//the filters will be passed into the function as an array but gets converted to the metadata model struct
-	similarProducts := setup.RetrieveSimilarProducts(avgVector, likedProducts, filters)
+	similarProducts := services.RetrieveSimilarProducts(avgVector, likedProducts, filters)
 	c.JSON(http.StatusOK, gin.H{"message": "Retrieved similar products", "products": similarProducts})
 
 }
