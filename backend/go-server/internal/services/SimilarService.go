@@ -8,7 +8,6 @@ import (
 	"server/internal/models"
 	"server/internal/setup"
 	"server/internal/utils"
-	"sync"
 	"github.com/pinecone-io/go-pinecone/v2/pinecone"
 	"google.golang.org/protobuf/types/known/structpb"
 	"strconv"
@@ -53,7 +52,7 @@ func DynamicMetadataMap(likedProducts []interface{}, metadata models.Metadata) m
 }
 
 // returns the productr id of the similar vectors
-func RetrieveSimiliarProductIds(queryVector []float32, likedProducts []string, filter []string) []string {
+func RetrieveSimiliarProductIds(queryVector []float32, likedProducts []string, filter []string) []int {
 	// Convert `[]string` to `[]interface{}` for Protobuf compatibility
 	likedProductsInterface := make([]interface{}, len(likedProducts))
 	for i, v := range likedProducts {
@@ -126,19 +125,19 @@ func RetrieveSimiliarProductIds(queryVector []float32, likedProducts []string, f
 		log.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	var productIdArray []string
+	var productIdArray []int
 
 	for _, match := range response.Matches {
 
 		vector := match.Vector
 		// fmt.Println("this is the vector struct", match)
-		productIdArray = append(productIdArray, vector.Id)
+		intId, _ := strconv.Atoi(vector.Id)
+		productIdArray = append(productIdArray, intId)
 	}
 
 	// fmt.Println("These are the similar products: ", productIdArray)
 
 	return productIdArray
-
 }
 
 // retrive all the user's like furnitures and return the average vector
@@ -171,39 +170,3 @@ func CalculateAverageVector(user_id int) []float32 {
 
 	return averageVector
 }
-
-//retrieve the metadata for the similar products
-func RetrieveSimilarProductInfo(productIDArray []string)[]models.Product{
-	var productArray []models.Product
-
-	//wait group determines that we should wait for all go routines to finish before returning
-	var wg sync.WaitGroup
-	//mutex lock/unlock
-	var mu sync.Mutex
-	
-	for _, id := range productIDArray{
-		//keeps track of how many goroutines we have to wait for 
-		wg.Add(1)
-
-		//create a go routine to add one vector into the sumVector
-		go func(id string) {
-
-			defer wg.Done()
-			intID,_ := strconv.Atoi(id)
-
-			prod := setup.RetrieveProductInfo(intID)
-
-			mu.Lock()
-
-			productArray = append(productArray, prod)
-
-			mu.Unlock()
-
-		}(id)//immediately invokes the go routine and passes the vector in
-
-		wg.Wait()
-		
-	}
-
-	return productArray
-} 

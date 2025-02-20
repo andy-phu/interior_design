@@ -84,3 +84,39 @@ func RetrieveProductInfo(productId int)models.Product{
 	
 	return product
 }
+
+
+func RetrieveMultipleProductInfo(productIdArray []int)[]models.Product{
+	sc, err := ConnectSupabase()
+	if err != nil {
+		fmt.Println("❌ Failed to connect to Supabase:", err)
+		return []models.Product{}
+	}
+	defer sc.Close(context.Background()) // Always close DB connection
+
+	var productArray []models.Product
+	query := `SELECT id, name, image, price, category, brand, material, product_link, product_type, style, description 
+	FROM "Product" WHERE id = ANY($1)`
+	rows, err := sc.Query(context.Background(),query, productIdArray)
+	if err != nil {
+		fmt.Println("❌ Error querying database:", err)
+		return productArray
+	}
+	defer rows.Close() // Always close rows
+
+	for rows.Next() {
+		var product models.Product
+
+		err := rows.Scan(&product.ID, &product.Name, &product.Image, &product.Price, &product.Category, &product.Brand, &product.Material, &product.ProductLink, &product.ProductType, &product.Style, &product.Description)	
+		if err != nil {
+			fmt.Println("❌ Error scanning row:", err)
+			continue
+		}
+		productArray = append(productArray, product)
+	}
+
+	
+	return productArray
+	
+	return productArray
+}

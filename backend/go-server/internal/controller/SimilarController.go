@@ -36,8 +36,9 @@ func GetSimilarFurniture(c *gin.Context) {
 	//the filters will be passed into the function as an array but gets converted to the metadata model struct
 	similarProductIds := services.RetrieveSimiliarProductIds(avgVector, likedProducts, filters)
 
-	similarProductInfo := services.RetrieveSimilarProductInfo(similarProductIds)
-	
+
+	similarProductInfo := setup.RetrieveMultipleProductInfo(similarProductIds)
+	fmt.Println("products", similarProductInfo)
 	c.JSON(http.StatusOK, gin.H{"message": "Retrieved similar products", "products": similarProductInfo})
 
 }
