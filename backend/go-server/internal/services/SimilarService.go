@@ -5,21 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"github.com/pinecone-io/go-pinecone/v2/pinecone"
 	"server/internal/models"
-	"google.golang.org/protobuf/types/known/structpb"
 	"server/internal/setup"
 	"server/internal/utils"
+	"sync"
+	"github.com/pinecone-io/go-pinecone/v2/pinecone"
+	"google.golang.org/protobuf/types/known/structpb"
+	"strconv"
 )
-
-
 
 func DynamicMetadataMap(likedProducts []interface{}, metadata models.Metadata) map[string]interface{} {
 	filter := make(map[string]interface{})
 
 	//preadds the likedProducts to the filter
 	filter["id"] = map[string]interface{}{
-		"$nin": likedProducts, 
+		"$nin": likedProducts,
 	}
 
 	if metadata.Category != "none" {
@@ -49,28 +49,22 @@ func DynamicMetadataMap(likedProducts []interface{}, metadata models.Metadata) m
 		return nil
 	}
 
-
 	return filter
 }
 
-
-
-
-
 // returns the productr id of the similar vectors
-func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, filter []string) []string {
-
+func RetrieveSimiliarProductIds(queryVector []float32, likedProducts []string, filter []string) []string {
 	// Convert `[]string` to `[]interface{}` for Protobuf compatibility
 	likedProductsInterface := make([]interface{}, len(likedProducts))
 	for i, v := range likedProducts {
 		likedProductsInterface[i] = v
 	}
 
-	//convert the filter into a metadata model struct but some of the fields can be empty 
+	//convert the filter into a metadata model struct but some of the fields can be empty
 	metadata := models.Metadata{
-		Category: filter[0],
-		Material: filter[1],
-		Style: filter[2],
+		Category:    filter[0],
+		Material:    filter[1],
+		Style:       filter[2],
 		ProductType: filter[3],
 	}
 
@@ -86,8 +80,8 @@ func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, filt
 	metadataFilter, err := structpb.NewStruct(metadataMap)
 
 	if err != nil {
-        log.Fatalf("Failed to create metadata map: %v", err)
-    }
+		log.Fatalf("Failed to create metadata map: %v", err)
+	}
 
 	ctx := context.Background()
 
@@ -110,8 +104,8 @@ func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, filt
 	}
 
 	res, err := idxConnection.QueryByVectorValues(ctx, &pinecone.QueryByVectorValuesRequest{
-		Vector: queryVector,
-		TopK:   30,
+		Vector:         queryVector,
+		TopK:           30,
 		MetadataFilter: metadataFilter,
 	})
 
@@ -142,6 +136,7 @@ func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, filt
 	}
 
 	// fmt.Println("These are the similar products: ", productIdArray)
+
 	return productIdArray
 
 }
@@ -149,7 +144,7 @@ func RetrieveSimilarProducts(queryVector []float32, likedProducts []string, filt
 // retrive all the user's like furnitures and return the average vector
 // have to query the user table for all product ids that are associated with user
 // grab their vectors from pinecone based on prod id
-func CalculateAverageVector(user_id int)([]float32) {
+func CalculateAverageVector(user_id int) []float32 {
 
 	productArray, err := setup.RetrieveUserProducts(user_id)
 	if err != nil {
@@ -157,23 +152,58 @@ func CalculateAverageVector(user_id int)([]float32) {
 	}
 	fmt.Println("These are the products that the user is interested in: ", productArray)
 
-
 	//2d array containing arrays of float32
-	vectorArray, err := setup.RetrieveVectors(productArray);
-	if err != nil{
-		log.Fatalf("Failed to retrieve vectors");
+	vectorArray, err := setup.RetrieveVectors(productArray)
+	if err != nil {
+		log.Fatalf("Failed to retrieve vectors")
 	}
 	// fmt.Println(vectorArray)
 
-	//sum up the vectors using goroutines 
+	//sum up the vectors using goroutines
 	sumVector := utils.SumVectors(vectorArray)
 
 	//get the average vector
 	averageVector := make([]float32, len(sumVector))
-	//iterate through each index and divide by the number of vectors 
+	//iterate through each index and divide by the number of vectors
 	for i, v := range sumVector {
 		averageVector[i] = v / float32(len(vectorArray))
 	}
 
 	return averageVector
 }
+
+//retrieve the metadata for the similar products
+func RetrieveSimilarProductInfo(productIDArray []string)[]models.Product{
+	var productArray []models.Product
+
+	//wait group determines that we should wait for all go routines to finish before returning
+	var wg sync.WaitGroup
+	//mutex lock/unlock
+	var mu sync.Mutex
+	
+	for _, id := range productIDArray{
+		//keeps track of how many goroutines we have to wait for 
+		wg.Add(1)
+
+		//create a go routine to add one vector into the sumVector
+		go func(id string) {
+
+			defer wg.Done()
+			intID,_ := strconv.Atoi(id)
+
+			prod := setup.RetrieveProductInfo(intID)
+
+			mu.Lock()
+
+			productArray = append(productArray, prod)
+
+			mu.Unlock()
+
+		}(id)//immediately invokes the go routine and passes the vector in
+
+		wg.Wait()
+		
+	}
+
+	return productArray
+} 

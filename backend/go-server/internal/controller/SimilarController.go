@@ -3,15 +3,14 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"server/internal/services"
 	"server/internal/setup"
 	"strconv"
+
 	"github.com/gin-gonic/gin"
-	"server/internal/services"
 )
 
-
-
-//takes in user id and their filters that they chose 
+// takes in user id and their filters that they chose
 func GetSimilarFurniture(c *gin.Context) {
 	userId, err := strconv.Atoi(c.Param("id"))
 
@@ -26,17 +25,19 @@ func GetSimilarFurniture(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user products"})
-		return 
+		return
 	}
 
-
-	//get the average for the user 
+	//get the average for the user
 	avgVector := services.CalculateAverageVector(userId)
 	// fmt.Println("this is the average vector: ", avgVector)
 
-	//get the similar products based on the filters and the average vector 
+	//get the similar products based on the filters and the average vector
 	//the filters will be passed into the function as an array but gets converted to the metadata model struct
-	similarProducts := services.RetrieveSimilarProducts(avgVector, likedProducts, filters)
-	c.JSON(http.StatusOK, gin.H{"message": "Retrieved similar products", "products": similarProducts})
+	similarProductIds := services.RetrieveSimiliarProductIds(avgVector, likedProducts, filters)
+
+	similarProductInfo := services.RetrieveSimilarProductInfo(similarProductIds)
+	
+	c.JSON(http.StatusOK, gin.H{"message": "Retrieved similar products", "products": similarProductInfo})
 
 }

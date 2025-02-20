@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	"server/internal/models"
 )
 
 // ConnectSupabase establishes a connection to the Supabase database
@@ -61,4 +62,25 @@ func RetrieveUserProducts(userID int) ([]string, error) {
 	}
 
 	return productIdArray, nil
+}
+
+
+func RetrieveProductInfo(productId int)models.Product{
+	sc, err := ConnectSupabase()
+	if err != nil {
+		fmt.Println("❌ Failed to connect to Supabase:", err)
+		return models.Product{}
+	}
+	defer sc.Close(context.Background()) // Always close DB connection
+
+	var product models.Product
+	query := `SELECT id, name, image, price, category, brand, material, product_link, product_type, style, description 
+    FROM "Product" WHERE id = $1`
+	err = sc.QueryRow(context.Background(),query, productId).Scan(&product.ID, &product.Name, &product.Image, &product.Price, &product.Category, &product.Brand, &product.Material, &product.ProductLink, &product.ProductType, &product.Style, &product.Description)	
+	if err != nil {
+		fmt.Println("❌ Error querying database:", err)
+		return models.Product{}
+	}
+	
+	return product
 }

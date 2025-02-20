@@ -5,8 +5,23 @@ import (
 	"server/internal/controller"
 )
 
+
 // RegisterRoutes sets up API routes
 func RegisterRoutes(r *gin.Engine) {
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // Or set to your frontend domain
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	  
+		if c.Request.Method == "OPTIONS" {
+		  c.AbortWithStatus(204) // Handle preflight requests
+		  return
+		}
+	  
+		c.Next()
+	})
+
+
 	api := r.Group("/api")
 	{
 		startup := api.Group("/")
