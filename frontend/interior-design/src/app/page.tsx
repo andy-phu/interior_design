@@ -20,7 +20,7 @@ export default function SplashScreen() {
       if (error || !data?.user) {
         router.push("/login") // 🔒 Redirect to login if not authenticated
       } else {
-        router.push("/tester") // 🚀 Redirect to the main app if authenticated
+        router.push("/product") // 🚀 Redirect to the main app if authenticated
       }
     }
 

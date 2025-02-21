@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  /* config options here */
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  images: {
+    domains: ["ashleyfurniture.scene7.com"], // ✅ Allow external images from this domain
+  },
 };
 
 export default nextConfig;
