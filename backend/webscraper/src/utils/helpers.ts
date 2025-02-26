@@ -32,10 +32,10 @@ export const reformatPrice = (priceString: string) => {
   const priceParts = cleanedPrice.split(' - ');
   let onePrice = priceParts[0].trim();
   if (onePrice.includes("$$")){
-    console.log("two double signs")
+    // console.log("two double signs")
     onePrice = onePrice.replace("$$", "$");
   }
-  return priceParts[0].trim();
+  return onePrice;
 };
 
 export const downloadImage = async (imageUrl: string, filePath: string) => {

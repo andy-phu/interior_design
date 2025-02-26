@@ -87,6 +87,8 @@ export const parseHTMLFile = async (filePath: string, product_type: string, cate
                 price = reformatPrice(price);
             }
 
+            price = price.replace(/\.\d+$/, "");
+
             // console.log("this is the price:", price);
 
             let material: string = "";
@@ -324,7 +326,7 @@ export const getDescription = async (product_array: ScrapedProduct[]): Promise<S
         const genAI = new GoogleGenerativeAI(gemini);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
-        console.log(`description chunk .......... starting`);
+        // console.log(`description chunk .......... starting`);
         
         const prompt = `Generate a product description for each image uploaded in one sentence. Each answer should be separated by a comma on one line. This is an example for a description: Two beige upholstered bar stools with a light wood frame`;
 
