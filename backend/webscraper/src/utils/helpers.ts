@@ -29,7 +29,13 @@ export const reformatPrice = (priceString: string) => {
     .replace(/\n/g, ' ')
     .replace(/\s*-\s*/g, ' - ')
     .trim();
-  return cleanedPrice;
+  const priceParts = cleanedPrice.split(' - ');
+  let onePrice = priceParts[0].trim();
+  if (onePrice.includes("$$")){
+    console.log("two double signs")
+    onePrice = onePrice.replace("$$", "$");
+  }
+  return priceParts[0].trim();
 };
 
 export const downloadImage = async (imageUrl: string, filePath: string) => {

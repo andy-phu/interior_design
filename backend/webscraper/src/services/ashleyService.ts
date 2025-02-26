@@ -69,7 +69,7 @@ export const parseHTMLFile = async (filePath: string, product_type: string, cate
             // Extract product name
             const name = $(elem).find('.product-name h3 a.name-link').text().trim();
             const product_link = $(elem).find('.product-name h3 a.name-link').attr('href') || "";
-            const image = $(elem).find('img.alternate-image').attr('src') || "";
+            const image = $(elem).find('img.primary-image').attr('src') || "";
         
             let price: string = $(elem).find('.sale-price').text().trim();
             // console.log(`price test: ${name} : ${price}`);
@@ -82,9 +82,12 @@ export const parseHTMLFile = async (filePath: string, product_type: string, cate
                 if (price === ""){
                     price = "0";
                 }
-            } else if (price.includes("-")) {
+            }
+            if (price.includes("-")) {
                 price = reformatPrice(price);
             }
+
+            // console.log("this is the price:", price);
 
             let material: string = "";
             const brand: string = "Ashley";
@@ -331,7 +334,7 @@ export const getDescription = async (product_array: ScrapedProduct[]): Promise<S
         const result_arr = result.response.text().trim().split(",");
 
         let trimmed_descriptions = result_arr.map(desc => desc.trim());
-        console.log("descriptions:", result_arr);
+        // console.log("descriptions:", result_arr);
         final_descriptions = final_descriptions.concat(trimmed_descriptions);
 
         // Clean up temporary files
