@@ -12,7 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	// "server/internal/setup/embeddings"
-
+	// "server/internal/setup"
+	// "server/internal/setup/embeddings"
 	// "server/internal/controller"
 	// "server/internal/models"
 	// "server/internal/utils"
@@ -20,9 +21,9 @@ import (
 )
 
 func main() {
-	// Uncomment only to readd vectors in pinecone
-	// setup.Init()
-	// embeddings.MetadataEmbeddings(setup.SC, setup.PC)
+	// Reinitialize pinecone from the new supabase addons
+	// SC, PC := setup.Init()
+	// embeddings.MetadataEmbeddings(SC, PC)
 	//==================================================
 
 	//user1 supposed to retrieve product id 272 and 600

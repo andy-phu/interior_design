@@ -12,7 +12,7 @@ import (
 var PC *pinecone.Client
 var SC *pgx.Conn
 
-func Init() {
+func Init() (*pgx.Conn, *pinecone.Client) {
 	// Load environment variables
 	err := godotenv.Load()
 	if err != nil {
@@ -32,4 +32,5 @@ func Init() {
 		log.Fatalf("Error initializing Supabase client: %v", err)
 	}
 	fmt.Println("Supabase client initialized successfully")
+	return SC,PC
 }

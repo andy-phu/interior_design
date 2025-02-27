@@ -151,7 +151,8 @@ func CalculateAverageVector(user_id int) []float32 {
 	}
 	fmt.Println("These are the products that the user is interested in: ", productArray)
 
-	//2d array containing arrays of float32
+	//2d array containing arrays of float32, 
+	//will get the vectors from pinecone based on the product ids that the user likes 
 	vectorArray, err := setup.RetrieveVectors(productArray)
 	if err != nil {
 		log.Fatalf("Failed to retrieve vectors")
@@ -159,10 +160,12 @@ func CalculateAverageVector(user_id int) []float32 {
 	// fmt.Println(vectorArray)
 
 	//sum up the vectors using goroutines
+
 	sumVector := utils.SumVectors(vectorArray)
 
 	//get the average vector
 	averageVector := make([]float32, len(sumVector))
+
 	//iterate through each index and divide by the number of vectors
 	for i, v := range sumVector {
 		averageVector[i] = v / float32(len(vectorArray))
