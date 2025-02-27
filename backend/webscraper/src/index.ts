@@ -5,6 +5,7 @@ import getAshleyCoffeeTables from './routes/routes.js';
 import getAshleyAccentChairs  from './routes/routes.js';
 import getAshleyBarStools  from './routes/routes.js';
 
+const ramaraja = Ramaraja({ weight: "400", subsets: ["latin"] });
 dotenv.config();
 
 const app = express();
