@@ -68,6 +68,9 @@ export const parseHTMLFile = async (filePath: string, product_type: string, cate
         for (let elem of productTiles) {
             // Extract product name
             const name = $(elem).find('.product-name h3 a.name-link').text().trim();
+            if (name.includes("Set of 2") || name.includes("Set of 3") || name.includes("2-Piece") || name.includes("3-Piece") || name.includes("4-Piece") || name.includes("2")) {
+                continue;
+            }
             const product_link = $(elem).find('.product-name h3 a.name-link').attr('href') || "";
             const image = $(elem).find('img.primary-image').attr('src') || "";
         
