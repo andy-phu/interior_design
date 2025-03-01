@@ -46,3 +46,15 @@ export const downloadImage = async (imageUrl: string, filePath: string) => {
     console.error('Error downloading image:', error);
   }
 };
+
+
+export const reformatName = (name: string) => {
+  const formattedName = name
+    .replace(/(?<!\w)(adjustable|upholstered|counter\s*height|swivel|height|backless|high\s*back)(?!\w)/gi, '') // Remove adjectives
+    .replace(/(?<!\w)(counter\s*stool|bar\s*stool|counterstool|barstool)(?!\w).*/gi, '') // Remove "counter stool", "bar stool" & variations
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // Add spaces between merged words (e.g., "RobbinBrook" → "Robbin Brook")
+    .replace(/\n/g, ' ') // Replace newlines with spaces
+    .trim(); // Trim spaces at start/end
+  return formattedName;
+};
+

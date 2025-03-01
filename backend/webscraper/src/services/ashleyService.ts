@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ScrapedProduct } from '../types/types.js';
-import { isValidURL, reformatPrice, fileToGenerativePart, downloadImage } from '../utils/helpers.js';
+import { isValidURL, reformatPrice, fileToGenerativePart, downloadImage, reformatName} from '../utils/helpers.js';
 import * as cheerio from 'cheerio';
 import prisma from '../prisma/prisma.js';
 import axios from 'axios';
@@ -67,8 +67,9 @@ export const parseHTMLFile = async (filePath: string, product_type: string, cate
         
         for (let elem of productTiles) {
             // Extract product name
-            const name = $(elem).find('.product-name h3 a.name-link').text().trim();
-            if (name.includes("Set of 2") || name.includes("Set of 3") || name.includes("2-Piece") || name.includes("3-Piece") || name.includes("4-Piece") || name.includes("2")) {
+            let name = $(elem).find('.product-name h3 a.name-link').text().trim();
+            const tempName = name.toLowerCase();
+            if (tempName.includes("set of 2") || tempName.includes("set of 3") || tempName.includes("set of 4") || tempName.includes("2-piece") || tempName.includes("3-piece") || tempName.includes("4-piece") || tempName.includes("2")) {
                 continue;
             }
             const product_link = $(elem).find('.product-name h3 a.name-link').attr('href') || "";
@@ -150,7 +151,8 @@ export const parseHTMLFile = async (filePath: string, product_type: string, cate
                     }
                 }
             }
-        
+            
+            name = reformatName(name);
             
             //make objects even if the materials are empty
             product_array.push({"name": name, "image": image, "price": price, "category": category, "product_type": product_type, "material": material, "product_link": product_link, "brand" : brand, "style": "", "description":""});
