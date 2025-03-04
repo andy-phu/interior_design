@@ -8,7 +8,7 @@ import (
 	// "server/internal/setup"
 
 	"server/internal/api"
-
+	// "server/internal/services"
 	"github.com/gin-gonic/gin"
 
 	// "server/internal/setup/embeddings"
@@ -45,6 +45,7 @@ func main() {
 
 	// similarProducts := setup.RetrieveSimilarProducts(avgVector, likedProdIds, metadata)
 	// fmt.Println("These are the similar products: ",similarProducts)
+
 
 
 	r := gin.Default()

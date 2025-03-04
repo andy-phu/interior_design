@@ -42,3 +42,26 @@ func StoreLike(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": message})
 }
+
+func StoreMultipleLikes(c *gin.Context) {
+	var req models.MultipleLikeRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	fmt.Println(req.UserID, req.ProductIDs)
+
+
+	message, err := services.StoreMultipleLikesService(req.UserID, req.ProductIDs)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}		
+
+	c.JSON(http.StatusOK, gin.H{"success": message})
+
+
+}

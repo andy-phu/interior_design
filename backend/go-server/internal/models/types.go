@@ -52,6 +52,12 @@ type LikeRequest struct {
 	ProductID int `json:"productId"`
 }
 
+type MultipleLikeRequest struct {
+	UserID    int `json:"userId"`
+	ProductIDs []int `json:"productIds"`
+}
+
+
 type Product struct{
 	ID string 
 	Name string
