@@ -143,14 +143,13 @@ func RetrieveSimiliarProductIds(queryVector []float32, likedProducts []string, f
 // retrive all the user's like furnitures and return the average vector
 // have to query the user table for all product ids that are associated with user
 // grab their vectors from pinecone based on prod id
-func CalculateAverageVector(user_id int) []float32 {
+func CalculateAverageVector(user_id string) []float32 {
 
 	productArray, err := setup.RetrieveUserProducts(user_id)
 	if err != nil {
 		log.Fatalf("Failed to retrieve user products: %v", err)
 	}
-	fmt.Println("These are the products that the user is interested in: ", productArray)
-
+	
 	//2d array containing arrays of float32, 
 	//will get the vectors from pinecone based on the product ids that the user likes 
 	vectorArray, err := setup.RetrieveVectors(productArray)

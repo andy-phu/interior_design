@@ -34,7 +34,7 @@ func ConnectSupabase() (*pgx.Conn, error) {
 }
 
 // RetrieveUserProducts fetches product IDs associated with a user from Supabase
-func RetrieveUserProducts(userID int) ([]string, error) {
+func RetrieveUserProducts(userID string) ([]string, error) {
 	sc, err := ConnectSupabase()
 	if err != nil {
 		fmt.Println("❌ Failed to connect to Supabase:", err)
@@ -43,7 +43,6 @@ func RetrieveUserProducts(userID int) ([]string, error) {
 	defer sc.Close(context.Background()) // Always close DB connection
 
 	var productIdArray []string
-
 	rows, err := sc.Query(context.Background(), `SELECT product_id FROM "User" WHERE user_id = $1`, userID)
 	if err != nil {
 		fmt.Println("❌ Error querying database:", err)
@@ -60,7 +59,6 @@ func RetrieveUserProducts(userID int) ([]string, error) {
 		}
 		productIdArray = append(productIdArray, strconv.Itoa(productID))
 	}
-
 	return productIdArray, nil
 }
 

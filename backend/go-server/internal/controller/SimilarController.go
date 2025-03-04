@@ -5,19 +5,14 @@ import (
 	"net/http"
 	"server/internal/services"
 	"server/internal/setup"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 // takes in user id and their filters that they chose
 func GetSimilarFurniture(c *gin.Context) {
-	userId, err := strconv.Atoi(c.Param("id"))
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Was not able to convert user id to an int"})
-		return
-	}
+	userId := c.Param("id")
+	
 	filters := c.QueryArray("filter")
 	fmt.Println("these are the filters selected:", filters)
 
@@ -35,10 +30,10 @@ func GetSimilarFurniture(c *gin.Context) {
 	//get the similar products based on the filters and the average vector
 	//the filters will be passed into the function as an array but gets converted to the metadata model struct
 	similarProductIds := services.RetrieveSimiliarProductIds(avgVector, likedProducts, filters)
-
+	fmt.Println("these are the similar product ids: ", similarProductIds)
 
 	similarProductInfo := setup.RetrieveMultipleProductInfo(similarProductIds)
-	fmt.Println("products", similarProductInfo)
+	// fmt.Println("products", similarProductInfo)
 	c.JSON(http.StatusOK, gin.H{"message": "Retrieved similar products", "products": similarProductInfo})
 
 }
