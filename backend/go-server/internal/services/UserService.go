@@ -67,7 +67,7 @@ func StoreLikeService(userID, productID int) (string, error) {
 }
 
 
-func StoreMultipleLikesService(userID int, productIDs []int) (string, error) {
+func StoreMultipleLikesService(userID string, productIDs []int) (string, error) {
 	sc, err := setup.ConnectSupabase()
 	if err != nil {
 		return "", errors.New("failed to connect to Supabase")
@@ -77,7 +77,7 @@ func StoreMultipleLikesService(userID int, productIDs []int) (string, error) {
 	//tuple ('user_id', 'product_id')
 	tupleArray := make([]string, len(productIDs))
 	for i := 0; i < len(productIDs); i++{
-		tupleArray[i] = fmt.Sprintf("(%d, %d)", userID, productIDs[i])
+		tupleArray[i] = fmt.Sprintf("('%s', %d)", userID, productIDs[i])
 	}
 
 
@@ -89,5 +89,5 @@ func StoreMultipleLikesService(userID int, productIDs []int) (string, error) {
 		return "", fmt.Errorf("insertion error: %v", err)
 	}
 
-	return fmt.Sprintf("User %d liked product %d", userID, productIDs), nil
+	return fmt.Sprintf("User %s liked product %d", userID, productIDs), nil
 }
