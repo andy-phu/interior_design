@@ -117,3 +117,6 @@ func RetrieveMultipleProductInfo(productIdArray []int)[]models.Product{
 	return productArray
 	
 }
+
+
+

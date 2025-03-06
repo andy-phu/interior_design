@@ -15,6 +15,15 @@ func GetSimilarFurniture(c *gin.Context) {
 	
 	filters := c.QueryArray("filter")
 	fmt.Println("these are the filters selected:", filters)
+	
+	//check if the user has liked any products or if they are new
+	//if they are then just give them the same liked products as someone in the db to match the trend 
+	newFlag := services.CheckIfUserLikedAnything(userId)
+	if newFlag != "0" {
+		userId = newFlag
+	}
+
+
 
 	likedProducts, err := setup.RetrieveUserProducts(userId)
 

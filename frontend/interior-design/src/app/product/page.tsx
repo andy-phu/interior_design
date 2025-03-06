@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import TinderCard from "react-tinder-card"
 import { swipeLogic } from "./swipeHandler"
+import { createClient } from "@/utils/supabase/client";
 
 interface Product {
   id: string
@@ -17,6 +18,9 @@ interface Product {
   productType: string
 }
 
+
+const supabase = createClient();
+
 export default function ProductView() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -26,7 +30,8 @@ export default function ProductView() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const userId = "ef411a37-803c-4002-92e9-c880904f35af"
+        const user = await supabase.auth.getUser();
+        const userId = user.data.user?.id;
 
         const response = await fetch(
           `http://localhost:8080/api/similar/${userId}?filter=none&filter=none&filter=none&filter=none`,

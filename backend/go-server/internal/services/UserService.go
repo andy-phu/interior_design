@@ -6,32 +6,31 @@ import (
 	"fmt"
 	"server/internal/setup"
 	"strings"
+	"log"
 )
 
 // GetAllUsersService retrieves all users and their liked products
-func GetAllUsersService() ([]map[string]int, error) {
+func GetAllUsersService() ([]string, error) {
 	sc, err := setup.ConnectSupabase()
 	if err != nil {
 		return nil, errors.New("failed to connect to Supabase")
 	}
 
-	rows, err := sc.Query(context.Background(), `SELECT user_id, product_id FROM "User"`)
+	rows, err := sc.Query(context.Background(), `SELECT user_id FROM "User"`)
 	if err != nil {
 		return nil, fmt.Errorf("query error: %v", err)
 	}
 	defer rows.Close()
 
-	var users []map[string]int
+	var users []string
 	for rows.Next() {
-		var userID, productID int
-		if err := rows.Scan(&userID, &productID); err != nil {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
 			return nil, fmt.Errorf("error scanning row: %v", err)
 		}
 
-		users = append(users, map[string]int{
-			"user_id":    userID,
-			"product_id": productID,
-		})
+		users = append(users, userID)
+		
 	}
 
 	return users, nil
@@ -90,4 +89,33 @@ func StoreMultipleLikesService(userID string, productIDs []int) (string, error) 
 	}
 
 	return fmt.Sprintf("User %s liked product %d", userID, productIDs), nil
+}
+
+
+func CheckIfUserLikedAnything(userID string) string {
+	sc, err := setup.ConnectSupabase()
+	if err != nil {
+		log.Fatal("❌ Failed to connect to Supabase: %v", err)
+	}
+	defer sc.Close(context.Background()) // Always close DB connection
+
+	var count int
+	query := `SELECT COUNT(*) FROM "User" WHERE user_id = $1`
+	err = sc.QueryRow(context.Background(),query, userID).Scan(&count)
+	if err != nil {
+		log.Fatal("❌ Failed to connect to Supabase: %v", err)
+	}
+	
+	//they have liked something
+	if count > 0{
+		return "0"
+	}
+	//return a user id in the db
+	users,err := GetAllUsersService()
+	// fmt.Println("these are the users returned:", users)
+	if err != nil{
+		log.Fatal("❌ There are no users in the database: %v", err)
+	}
+	return users[0] //get the key only	
+	
 }

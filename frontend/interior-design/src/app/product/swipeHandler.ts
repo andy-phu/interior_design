@@ -39,7 +39,7 @@ export const saveLikesToServer = async (likedItems: number[]) => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                userId: "ef411a37-803c-4002-92e9-c880904f35af",
+                userId: data.user.id,
                 productIds: likedItems,
             }),
         });
