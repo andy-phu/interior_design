@@ -18,7 +18,8 @@ export default function SplashScreen() {
       const { data, error } = await supabase.auth.getUser()
 
       if (error || !data?.user) {
-        router.push("/login") // 🔒 Redirect to login if not authenticated
+        // router.push("/login") // 🔒 Redirect to login if not authenticated
+        console.log("NOT AUTHENTICATED")
       } else {
         router.push("/product") // 🚀 Redirect to the main app if authenticated
       }

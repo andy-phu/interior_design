@@ -25,7 +25,7 @@ model Product {
 
 model User{
   id      Int @id @default(autoincrement()) // Unique identifier for each row
-  user_id Int 
+  user_id String 
   product_id Int
 }
 

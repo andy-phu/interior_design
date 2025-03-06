@@ -3,54 +3,46 @@ import { Undo2, SlidersHorizontal, Home, BookmarkIcon, Clock, ShoppingCart, User
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Image from "next/image"
-import { motion } from "framer-motion"
+import TinderCard from "react-tinder-card"
+import { swipeLogic } from "./swipeHandler"
 
 interface Product {
-  name: string;
-  image: string;
-  price: number; 
-  material: string;
-  productLink: string;
-  description: string;
+  id: string
+  name: string
+  image: string
+  price: string
+  material: string
+  productLink: string
+  description: string
+  productType: string
 }
-
-
-
-
-
 
 export default function ProductView() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [products, setProducts] = useState<Product[]>([]) // Array of image URLs
-  const [currentIndex, setCurrentIndex] = useState(0) // Track current image
+  const [products, setProducts] = useState<Product[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        const userId = "ef411a37-803c-4002-92e9-c880904f35af"
+
         const response = await fetch(
-          "http://localhost:8080/api/similar/1?filter=none&filter=none&filter=none&filter=none",
+          `http://localhost:8080/api/similar/${userId}?filter=none&filter=none&filter=none&filter=none`,
         )
         const data = await response.json()
-        // console.log("this is the data: ", data)
-        const products = data.products;
-        let productArray = []
-
-        for(let i = 0; i < products.length; i++) {
-          let tempProduct = {
-            id: products[i].ID,
-            name: products[i].Name,
-            image: products[i].Image,
-            price: products[i].Price,
-            description: products[i].Description,
-            material: products[i].Material,
-            productLink: products[i].ProductLink
-          }
-          productArray.push(tempProduct)
-        }
-        console.log("these are the products", productArray)
-        setProducts(productArray) // Assuming API returns { products: ["image1.jpg", "image2.jpg"] }
-        
+        const productArray = data.products.map((item: any) => ({
+          id: item.ID,
+          name: item.Name,
+          image: item.Image,
+          price: item.Price.toString(),
+          description: item.Description,
+          material: item.Material,
+          productLink: item.ProductLink,
+          productType: item.ProductType,
+        }))
+        setProducts(productArray)
       } catch (error) {
         console.error("Error fetching products:", error)
       } finally {
@@ -60,71 +52,101 @@ export default function ProductView() {
     fetchProducts()
   }, [])
 
-  // Handle swipe gesture
-  const handleDragEnd = (event: any, info: any) => {
-    const swipeThreshold = 100 // Minimum swipe distance to register a change
-    if (info.offset.x > swipeThreshold && currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1) // Swipe right: go back
-    } else if (info.offset.x < -swipeThreshold && currentIndex < products.length - 1) {
-      setCurrentIndex(currentIndex + 1) // Swipe left: go forward
-    }
+  const handleSwipe = (direction: string, productId: string) => {
+    //found in the swipeHandler.ts
+    swipeLogic(direction, productId)
+
+    setCurrentIndex((prevIndex) => (prevIndex < products.length - 1 ? prevIndex + 1 : 0))
   }
 
   return (
     <div className="h-screen max-w-sm w-full mx-auto bg-background flex flex-col">
-      {/* ✅ Top Navigation */}
+      {/* Top Navigation */}
       <div className="flex items-center justify-between px-6 py-5 h-20">
-        <button className="flex items-center justify-center w-10 h-10 rounded-full" onClick={() => router.push("/previous-page")}>
+        <button
+          className="flex items-center justify-center w-10 h-10 rounded-full"
+          onClick={() => router.push("/previous-page")}
+        >
           <Undo2 className="w-6 h-6" />
         </button>
-
-        <span className="font-bold text-2xl tracking-wide">OpenHouse</span>
-
-        <button className="flex items-center justify-center w-10 h-10 rounded-full" onClick={() => router.push("/settings")}>
+        <span className="ramaraja font-extrabold text-4xl tracking-wide">OpenHouse</span>
+        <button
+          className="flex items-center justify-center w-10 h-10 rounded-full"
+          onClick={() => router.push("/settings")}
+        >
           <SlidersHorizontal className="w-6 h-6" />
         </button>
       </div>
 
-      {/* ✅ Swipeable Image */}
+      {/* Swipeable Cards */}
       <main className="flex-1 flex flex-col">
-        <div className="flex-1 flex items-center justify-center mb-8 px-4 relative">
+        <div className="relative flex-1">
           {products.length > 0 ? (
-            <motion.div
-              drag="x" // Enable horizontal dragging
-              dragConstraints={{ left: 0, right: 0 }} // Constrain swipe movement
-              onDragEnd={handleDragEnd} // Detect swipe gesture
-              className="cursor-grab active:cursor-grabbing"
-            >
-              <Image
-                src={products[currentIndex].image} // Display the current image
-                alt="Furniture Product"
-                width={450}
-                height={350}
-                className="rounded-3xl object-cover"
-                priority
-              />
-            </motion.div>
-          ) : (
-            <p>Loading...</p>
-          )}
-        </div>
+            <div className="absolute inset-0">
+              {products.slice(currentIndex, currentIndex + 1).map((product) => (
+                <TinderCard
+                  key={product.id}
+                  onSwipe={(dir) => handleSwipe(dir, product.id)}
+                  preventSwipe={["up", "down"]}
+                  swipeRequirementType="velocity"
+                  swipeThreshold={1} // Reduce the threshold for easier swiping
+                  className="absolute w-full h-full"
+                >
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={product.image || "/placeholder.svg"}
+                      alt={product.name || "Product"}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-black via-black/50 to-black/10 rounded-2xl" />
+                    {/* Product Info Overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                      <div className="flex justify-between">
+                        {/* Left Side: Product Name & Material */}
+                        <div className="flex flex-col justify-between">
+                          <h1 className="text-xl font-extrabold leading-tight">{product.name}</h1>
+                          <p className="relative bottom-0 text-md text-white/80">{product.material}</p>
+                        </div>
 
-        {/* ✅ Product Info */}
-        <div className="space-y-5 mb-8 px-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-medium">Ancel Table Lamp</h1>
-            <p className="text-2xl font-semibold">$69.00</p>
-          </div>
-          <div className="space-y-3">
-            <p className="text-base text-muted-foreground">
-              Modern design meets functionality in this elegant table lamp. Perfect for any contemporary living space.
-            </p>
-            <p className="text-sm text-muted-foreground">Materials: Ceramic base, natural wood accent, fabric shade</p>
-          </div>
+                        <div className="flex flex-col ml-8 justify-between">
+                          {/* Right Side: Price */}
+                          <p className="text-2xl font-extrabold">{product.price}</p>
+                          <p className="relative bottom-0 whitespace-nowrap">{product.productType}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TinderCard>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="flex flex-col items-center justify-center">
+                <div className="w-24 h-24 mb-4">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#1B4332"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-full h-full animate-pulse"
+                  >
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                  </svg>
+                </div>
+                <h1 className="text-[#1B4332] text-2xl font-bold tracking-tight">Loading Products...</h1>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
-      {/* ✅ Bottom Navigation */}
+      {/* Bottom Navigation */}
       <div className="border-t bg-background">
         <nav className="flex justify-around items-center py-4">
           {[
@@ -148,3 +170,4 @@ export default function ProductView() {
     </div>
   )
 }
+
