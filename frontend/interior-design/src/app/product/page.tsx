@@ -1,11 +1,20 @@
 "use client"
-import { Undo2, SlidersHorizontal, Home, BookmarkIcon, Clock, ShoppingCart, User } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
-import Image from "next/image"
-import TinderCard from "react-tinder-card"
-import { swipeLogic } from "./swipeHandler"
+import {
+  Undo2,
+  SlidersHorizontal,
+  Home,
+  BookmarkIcon,
+  Clock,
+  ShoppingCart,
+  User,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import TinderCard from "react-tinder-card";
+import { swipeLogic } from "./swipeHandler";
 import { createClient } from "@/utils/supabase/client";
+import FilterOptions from "@/app/components/filter"; // ✅ Fixed import path
 
 interface Product {
   id: string
@@ -18,25 +27,47 @@ interface Product {
   productType: string
 }
 
-
-const supabase = createClient();
+type FilterState = {
+  Category: string[]
+  Material: string[]
+  Style: string[]
+  ProductType: string[]
+}
 
 export default function ProductView() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [showFilters, setShowFilters] = useState(false)
+  const [activeFilters, setActiveFilters] = useState<FilterState>({
+    Category: [],
+    Material: [],
+    Style: [],
+    ProductType: [],
+  })
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const user = await supabase.auth.getUser();
-        const userId = user.data.user?.id;
+        const supabase = await createClient();
+        const userId = await supabase.auth.getUser()
 
-        const response = await fetch(
-          `http://localhost:8080/api/similar/${userId}?filter=none&filter=none&filter=none&filter=none`,
-        )
+        // Build filter query params
+        const filterParams = Object.entries(activeFilters)
+          .flatMap(([key, values]) =>
+            values.length > 0
+              ? values.map((value) => `filter=${value}`)
+              : "filter=none",
+          )
+          .join("&")
+        
+        console.log("filterParams:", filterParams)
+        
+        //category, material, style, product type
+        const response = await fetch(`http://localhost:8080/api/similar/${userId}?${filterParams}`)
         const data = await response.json()
+        console.log("this is the data: ", data);
         const productArray = data.products.map((item: any) => ({
           id: item.ID,
           name: item.Name,
@@ -55,13 +86,16 @@ export default function ProductView() {
       }
     }
     fetchProducts()
-  }, [])
+  }, [activeFilters])
 
   const handleSwipe = (direction: string, productId: string) => {
-    //found in the swipeHandler.ts
     swipeLogic(direction, productId)
-
     setCurrentIndex((prevIndex) => (prevIndex < products.length - 1 ? prevIndex + 1 : 0))
+  }
+
+  const handleApplyFilters = (filters: FilterState) => {
+    setActiveFilters(filters)
+    setCurrentIndex(0) // Reset to first product when filters change
   }
 
   return (
@@ -77,7 +111,7 @@ export default function ProductView() {
         <span className="ramaraja font-extrabold text-4xl tracking-wide">OpenHouse</span>
         <button
           className="flex items-center justify-center w-10 h-10 rounded-full"
-          onClick={() => router.push("/settings")}
+          onClick={() => setShowFilters(true)}
         >
           <SlidersHorizontal className="w-6 h-6" />
         </button>
@@ -94,7 +128,7 @@ export default function ProductView() {
                   onSwipe={(dir) => handleSwipe(dir, product.id)}
                   preventSwipe={["up", "down"]}
                   swipeRequirementType="velocity"
-                  swipeThreshold={1} // Reduce the threshold for easier swiping
+                  swipeThreshold={1}
                   className="absolute w-full h-full"
                 >
                   <div className="relative w-full h-full">
@@ -128,9 +162,9 @@ export default function ProductView() {
               ))}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full bg-[#f5f9f7]">
               <div className="flex flex-col items-center justify-center">
-                <div className="w-24 h-24 mb-4">
+                <div className="w-16 h-16 mb-4">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -172,6 +206,9 @@ export default function ProductView() {
           ))}
         </nav>
       </div>
+
+      {/* Filter Modal - Only shown when showFilters is true */}
+      {showFilters && <FilterOptions onApplyFilters={handleApplyFilters} onClose={() => setShowFilters(false)} />}
     </div>
   )
 }

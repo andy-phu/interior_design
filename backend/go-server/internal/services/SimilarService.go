@@ -101,7 +101,7 @@ func RetrieveSimiliarProductIds(queryVector []float32, likedProducts []string, f
 	if err != nil {
 		log.Fatalf("Failed to describe index: %v", err)
 	}
-
+	fmt.Println("this is the meta data filter: ",	metadataFilter)
 	res, err := idxConnection.QueryByVectorValues(ctx, &pinecone.QueryByVectorValuesRequest{
 		Vector:         queryVector,
 		TopK:           30,
